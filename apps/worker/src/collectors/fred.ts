@@ -1,0 +1,79 @@
+import type { ObservationConfidence } from '@refi-radar/shared';
+import type { ObservationInput } from '../db/queries';
+import { insertObservation, upsertSource } from '../db/queries';
+import type { Env } from '../env';
+
+const FRED_BASE_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=';
+
+const FRED_SOURCES = [
+  {
+    sourceId: 'fred_mortgage30us',
+    seriesId: 'MORTGAGE30US',
+    name: 'Freddie Mac PMMS 30Y',
+    kind: 'weekly_survey',
+    cadenceMinutes: 1440,
+    confidence: 'weekly_survey' as const,
+  },
+  {
+    sourceId: 'fred_dgs10',
+    seriesId: 'DGS10',
+    name: 'FRED 10Y Treasury',
+    kind: 'daily_proxy',
+    cadenceMinutes: 1440,
+    confidence: 'proxy' as const,
+  },
+];
+
+export function parseFredCsv(csv: string, sourceId: string, confidence: ObservationConfidence): ObservationInput[] {
+  const lines = csv.trim().split(/\r?\n/).filter(Boolean);
+  const [, ...rows] = lines;
+  const fetchedAt = new Date().toISOString();
+
+  return rows.flatMap((line) => {
+    const [date, rawValue] = line.split(',').map((part) => part.trim().replace(/^"|"$/g, ''));
+    if (!date || !rawValue || rawValue === '.') return [];
+    const rate = Number(rawValue);
+    if (!Number.isFinite(rate)) return [];
+    return [{ sourceId, observedAt: date, fetchedAt, rate, confidence, raw: { fred: line } }];
+  });
+}
+
+export async function fetchFredSeries(seriesId: string): Promise<string> {
+  const response = await fetch(`${FRED_BASE_URL}${encodeURIComponent(seriesId)}`);
+  if (!response.ok) {
+    throw new Error(`FRED ${seriesId} request failed: ${response.status}`);
+  }
+  return response.text();
+}
+
+export async function collectFredSources(env: Env): Promise<{ ok: boolean; results: Array<{ sourceId: string; ok: boolean; inserted: number; error?: string }> }> {
+  const results: Array<{ sourceId: string; ok: boolean; inserted: number; error?: string }> = [];
+
+  if (!env.DB) {
+    return { ok: false, results: FRED_SOURCES.map((source) => ({ sourceId: source.sourceId, ok: false, inserted: 0, error: 'DB binding missing' })) };
+  }
+
+  for (const source of FRED_SOURCES) {
+    try {
+      await upsertSource(env.DB, {
+        id: source.sourceId,
+        name: source.name,
+        kind: source.kind,
+        url: `${FRED_BASE_URL}${source.seriesId}`,
+        cadenceMinutes: source.cadenceMinutes,
+      });
+      const csv = await fetchFredSeries(source.seriesId);
+      const observations = parseFredCsv(csv, source.sourceId, source.confidence);
+      let inserted = 0;
+      for (const observation of observations) {
+        const result = await insertObservation(env.DB, observation);
+        if (result.inserted) inserted += 1;
+      }
+      results.push({ sourceId: source.sourceId, ok: true, inserted });
+    } catch (error) {
+      results.push({ sourceId: source.sourceId, ok: false, inserted: 0, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  return { ok: results.every((result) => result.ok), results };
+}

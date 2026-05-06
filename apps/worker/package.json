@@ -11,6 +11,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "@refi-radar/shared": "workspace:^",
+    "hono": "^4.12.17"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260506.1",
+    "wrangler": "^4.88.0"
+  }
 }
