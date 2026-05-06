@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, Bell, LineChart, RadioTower } from 'lucide-rea
 import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType, SourceId } from '@refi-radar/shared';
 
 import { MetricCard } from './components/MetricCard';
+import { MobileDashboard } from './components/MobileDashboard';
 import { RangeTabs } from './components/RangeTabs';
 import { RateChart } from './components/RateChart';
 import { RateDetailPanel } from './components/RateDetailPanel';
@@ -135,6 +136,17 @@ export default function App() {
 
   return (
     <main className="app-shell mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <MobileDashboard
+        latest={latest}
+        series={series}
+        range={range}
+        onRangeChange={setRange}
+        onSelectSource={setSelectedSourceId}
+        usingDemo={usingDemo}
+        loading={latestLoading || seriesLoading}
+      />
+
+      <div className="desktop-dashboard">
       <header className="hero flex flex-col gap-6 border-b border-white/8 pb-8 pt-2 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#1D9BF0]/20 bg-[#1D9BF0]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8ED0FF]">
@@ -237,6 +249,7 @@ export default function App() {
           </div>
         </section>
       </section>
+      </div>
 
       {selectedSourceId ? (
         <RateDetailPanel
