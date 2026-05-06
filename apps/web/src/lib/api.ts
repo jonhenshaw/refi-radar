@@ -26,6 +26,7 @@ interface ApiCompareResponse {
 }
 
 const comparedSources: SourceId[] = ['mnd_30y_fixed', 'fred_mortgage30us', 'fred_dgs10'];
+const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
 
 const sourceMeta: Record<SourceId, { label: string; color: string }> = {
   mnd_30y_fixed: { label: 'MND 30Y Fixed', color: '#1D9BF0' },
@@ -34,7 +35,7 @@ const sourceMeta: Record<SourceId, { label: string; color: string }> = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(`${API_BASE}${path}`, {
     headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
     ...init,
   });

@@ -2,12 +2,14 @@ name = "refi-radar-worker"
 main = "src/index.ts"
 compatibility_date = "2026-05-05"
 
+[triggers]
+crons = ["*/15 * * * *"]
+
 [[d1_databases]]
 binding = "DB"
-database_name = "refi-radar-dev"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "refi-radar-prod"
+database_id = "01289de3-4654-44dc-b789-02ad4abec0db"
 
 [[kv_namespaces]]
 binding = "REFI_RADAR_CACHE"
-id = "00000000000000000000000000000000"
-preview_id = "00000000000000000000000000000000"
+id = "0ea496029b314a8488764ece2210c40f"

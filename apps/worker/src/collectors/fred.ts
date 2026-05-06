@@ -24,12 +24,13 @@ const FRED_SOURCES = [
   },
 ];
 
-export function parseFredCsv(csv: string, sourceId: string, confidence: ObservationConfidence): ObservationInput[] {
+export function parseFredCsv(csv: string, sourceId: string, confidence: ObservationConfidence, maxObservations = 400): ObservationInput[] {
   const lines = csv.trim().split(/\r?\n/).filter(Boolean);
   const [, ...rows] = lines;
   const fetchedAt = new Date().toISOString();
+  const recentRows = rows.slice(-maxObservations);
 
-  return rows.flatMap((line) => {
+  return recentRows.flatMap((line) => {
     const [date, rawValue] = line.split(',').map((part) => part.trim().replace(/^"|"$/g, ''));
     if (!date || !rawValue || rawValue === '.') return [];
     const rate = Number(rawValue);
@@ -38,12 +39,27 @@ export function parseFredCsv(csv: string, sourceId: string, confidence: Observat
   });
 }
 
-export async function fetchFredSeries(seriesId: string): Promise<string> {
-  const response = await fetch(`${FRED_BASE_URL}${encodeURIComponent(seriesId)}`);
-  if (!response.ok) {
-    throw new Error(`FRED ${seriesId} request failed: ${response.status}`);
-  }
-  return response.text();
+export async function fetchFredSeries(seriesId: string, timeoutMs = 10_000): Promise<string> {
+  const controller = new AbortController();
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      controller.abort();
+      reject(new Error(`FRED ${seriesId} request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  const request = (async () => {
+    const response = await fetch(`${FRED_BASE_URL}${encodeURIComponent(seriesId)}`, {
+      signal: controller.signal,
+      headers: { 'user-agent': 'RefiRadar/0.1 (+https://refi-radar.pages.dev)' },
+    });
+    if (!response.ok) {
+      throw new Error(`FRED ${seriesId} request failed: ${response.status}`);
+    }
+    return response.text();
+  })();
+
+  return Promise.race([request, timeout]);
 }
 
 export async function collectFredSources(env: Env): Promise<{ ok: boolean; results: Array<{ sourceId: string; ok: boolean; inserted: number; error?: string }> }> {

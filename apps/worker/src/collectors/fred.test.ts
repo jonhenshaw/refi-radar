@@ -15,7 +15,13 @@ describe('FRED collector', () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('observation_date,DGS10\n2026-05-01,4.5\n'));
 
     await expect(fetchFredSeries('DGS10')).resolves.toContain('DGS10');
-    expect(fetchMock).toHaveBeenCalledWith('https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'user-agent': expect.stringContaining('RefiRadar') }),
+        signal: expect.any(AbortSignal),
+      }),
+    );
     fetchMock.mockRestore();
   });
 

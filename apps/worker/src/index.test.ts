@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import app, { choosePrimaryObservation } from './index';
+import { app } from './index';
+import { choosePrimaryObservation } from './services/latest';
 import type { RateObservation } from '@refi-radar/shared';
 
 describe('worker api foundation', () => {
