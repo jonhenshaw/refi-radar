@@ -4,11 +4,11 @@ import type { RangeKey, RateSeries } from '../lib/api';
 import { RateChart } from './RateChart';
 import { formatRate } from './MetricCard';
 
-const rangeLabels: Record<RangeKey, string> = {
-  '5D': '5-day',
-  '1M': '1-month',
-  '3M': '3-month',
-  '1Y': '12-month',
+const compactRangeLabels: Record<RangeKey, string> = {
+  '5D': '5D',
+  '1M': '1M',
+  '3M': '3M',
+  '1Y': '1Y',
 };
 
 function countPoints(series: RateSeries[]): number {
@@ -24,6 +24,7 @@ export function ChartInspectPanel({ series, range, onClose }: { series: RateSeri
   const points = countPoints(series);
   const feeds = series.filter((item) => item.points.length > 0).length;
   const latest = latestPrimaryRate(series);
+  const title = `${compactRangeLabels[range]} Trend`;
 
   return (
     <div className="rate-detail-backdrop" onClick={onClose}>
@@ -34,34 +35,24 @@ export function ChartInspectPanel({ series, range, onClose }: { series: RateSeri
         className="rate-detail-dialog panel chart-inspect-dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="rate-detail-header">
+        <header className="chart-inspect-topbar">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Expanded chart</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-white">{rangeLabels[range]} multi-source trend</h2>
-            <p className="mt-2 text-sm text-white/45">Inspect all tracked feeds across the selected date filter.</p>
+            <p className="chart-inspect-eyebrow">Expanded chart</p>
+            <h2 className="chart-inspect-topline">{title}</h2>
           </div>
-          <button type="button" aria-label="Close expanded chart" onClick={onClose} className="rate-detail-close">
+          <button type="button" aria-label="Close expanded chart" onClick={onClose} className="rate-detail-close chart-inspect-close">
             <X className="h-5 w-5" />
           </button>
-        </div>
-
-        <div className="chart-inspect-summary">
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">Primary latest</p>
-            <p className="mt-2 font-mono text-3xl font-semibold text-white">{formatRate(latest)}</p>
-          </div>
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">Feeds</p>
-            <p className="mt-2 font-mono text-3xl font-semibold text-white">{feeds}</p>
-          </div>
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">Points</p>
-            <p className="mt-2 font-mono text-3xl font-semibold text-white">{points}</p>
-          </div>
-        </div>
+        </header>
 
         <div className="chart-inspect-chart rate-detail-chart">
           <RateChart series={series} />
+        </div>
+
+        <div className="chart-inspect-compact-summary" aria-label="Chart summary">
+          <span>{formatRate(latest)} latest</span>
+          <span>{feeds} feeds</span>
+          <span>{points} pts</span>
         </div>
       </section>
     </div>

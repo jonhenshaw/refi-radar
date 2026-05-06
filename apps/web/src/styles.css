@@ -544,22 +544,77 @@ p { margin-bottom: 0; }
 }
 .chart-inspect-dialog {
   width: min(1180px, 100%);
+  max-height: min(92vh, 820px);
+  overflow: auto;
+  padding: 16px;
 }
-.chart-inspect-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.chart-inspect-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-top: 18px;
+  margin-bottom: 10px;
+}
+.chart-inspect-eyebrow {
+  margin: 0 0 2px;
+  color: #1D9BF0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.chart-inspect-topline {
+  margin: 0;
+  color: white;
+  font-size: clamp(24px, 4vw, 34px);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+.chart-inspect-close {
+  flex: 0 0 auto;
 }
 .chart-inspect-chart {
-  margin-top: 16px;
-  padding: 8px;
+  margin-top: 0;
+  padding: 0;
 }
 .chart-inspect-chart .h-\[340px\] {
-  height: min(58vh, 520px);
+  height: min(68vh, 560px);
+}
+.chart-inspect-chart .mt-4 {
+  margin-top: 10px;
+}
+.chart-inspect-compact-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.chart-inspect-compact-summary span {
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  padding: 7px 10px;
+  color: rgba(255,255,255,.76);
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 @media (max-width: 640px) {
-  .chart-inspect-summary { grid-template-columns: 1fr; }
   .chart-inspect-hint { right: 10px; top: 10px; padding: 4px 8px; font-size: 10px; }
-  .chart-inspect-chart .h-\[340px\] { height: 320px; }
+  .chart-inspect-dialog {
+    width: calc(100vw - 18px);
+    max-height: calc(100dvh - 28px);
+    padding: 10px;
+    border-radius: 24px;
+  }
+  .chart-inspect-topbar { margin-bottom: 8px; }
+  .chart-inspect-eyebrow { font-size: 10px; letter-spacing: .14em; }
+  .chart-inspect-topline { font-size: 26px; }
+  .chart-inspect-close { width: 42px; height: 42px; }
+  .chart-inspect-chart .h-\[340px\] { height: min(58dvh, 430px); }
+  .chart-inspect-chart .mt-4 { margin-top: 8px; }
+  .chart-inspect-chart .text-xs { font-size: 10px; }
+  .chart-inspect-compact-summary { gap: 6px; margin-top: 9px; }
+  .chart-inspect-compact-summary span { padding: 6px 8px; font-size: 11px; }
 }
