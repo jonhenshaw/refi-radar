@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { MetricCard } from './MetricCard';
 
@@ -25,5 +25,14 @@ describe('MetricCard', () => {
 
     expect(screen.getByText('Missing source')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('can be clicked to request a detailed source history view', async () => {
+    const onSelect = vi.fn();
+    render(<MetricCard label="MND 30Y Fixed" value={6.54} changeBps={-2} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /view MND 30Y Fixed history/i }));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 });

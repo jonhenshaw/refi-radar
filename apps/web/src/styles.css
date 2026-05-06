@@ -86,7 +86,83 @@ svg { display: block; }
 .font-mono, [class*="font-mono"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
 .text-red-300 { color: #fca5a5; }
 .text-emerald-300 { color: #6ee7b7; }
+.text-emerald-200 { color: #a7f3d0; }
 .text-white { color: white; }
+
+.rate-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: clamp(12px, 4vw, 32px);
+  background: rgba(0, 0, 0, 0.76);
+  backdrop-filter: blur(14px);
+}
+.rate-detail-dialog {
+  width: min(1040px, 100%);
+  max-height: min(92vh, 980px);
+  overflow-y: auto;
+  padding: clamp(20px, 3vw, 28px);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(29,155,240,0.08);
+}
+.rate-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.rate-detail-close {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.62);
+  transition: border-color .2s ease, background .2s ease, color .2s ease;
+}
+.rate-detail-close:hover {
+  border-color: rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.07);
+  color: white;
+}
+.rate-detail-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.28fr);
+  gap: 16px;
+  margin-top: 20px;
+  align-items: stretch;
+}
+.rate-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.rate-detail-chart {
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0));
+}
+.rate-detail-chart svg { height: 300px; width: 100%; }
+.rate-detail-chart .h-\[360px\] { height: 300px; }
+
+@media (max-width: 860px) {
+  .rate-detail-body { grid-template-columns: 1fr; }
+  .rate-detail-dialog { max-height: 92vh; }
+}
+@media (max-width: 640px) {
+  .rate-detail-stats { grid-template-columns: 1fr; }
+  .rate-detail-header { align-items: flex-start; }
+}
 
 .p-3 { padding: 12px; } .p-4 { padding: 16px; } .p-5 { padding: 20px; } .p-6 { padding: 24px; }
 .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; } .mt-4 { margin-top: 16px; } .mt-5 { margin-top: 20px; } .mt-6 { margin-top: 24px; } .mt-8 { margin-top: 32px; }

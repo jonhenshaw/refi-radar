@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, Bell, LineChart, RadioTower } from 'lucide-react';
 
-import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType } from '@refi-radar/shared';
+import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType, SourceId } from '@refi-radar/shared';
 
 import { MetricCard } from './components/MetricCard';
 import { RangeTabs } from './components/RangeTabs';
 import { RateChart } from './components/RateChart';
+import { RateDetailPanel } from './components/RateDetailPanel';
 import { RefiCalculator } from './components/RefiCalculator';
 import { SourceHealth } from './components/SourceHealth';
 import { getCompareSeries, getLatest, type RangeKey, type RateSeries } from './lib/api';
@@ -73,6 +74,7 @@ export default function App() {
   const [range, setRange] = useState<RangeKey>('1M');
   const [series, setSeries] = useState<RateSeries[]>([]);
   const [seriesLoading, setSeriesLoading] = useState(true);
+  const [selectedSourceId, setSelectedSourceId] = useState<SourceId | null>(null);
 
   const loadLatest = useCallback(async () => {
     try {
@@ -123,6 +125,8 @@ export default function App() {
   }, [range]);
 
   const sources = latest?.sources ?? [];
+  const selectedSource = selectedSourceId ? sources.find((source) => source.sourceId === selectedSourceId) : undefined;
+  const selectedSeries = selectedSourceId ? series.find((item) => item.sourceId === selectedSourceId) : undefined;
   const primaryRate = latest?.primary?.rate ?? sources[0]?.rate;
   const avgChange = useMemo(() => {
     const changes = sources.map((source) => source.changeBps).filter((value): value is number => typeof value === 'number');
@@ -168,6 +172,7 @@ export default function App() {
                   meta={source.confidence.replace('_', ' ')}
                   icon={<LineChart className="h-5 w-5" />}
                   demo={usingDemo}
+                  onSelect={() => setSelectedSourceId(source.sourceId)}
                 />
               ))
             : <MetricCard label="No observations" value={undefined} meta="Waiting for API data" icon={<LineChart className="h-5 w-5" />} />}
@@ -232,6 +237,16 @@ export default function App() {
           </div>
         </section>
       </section>
+
+      {selectedSourceId ? (
+        <RateDetailPanel
+          label={sourceLabels[selectedSourceId] ?? selectedSourceId}
+          sourceId={selectedSourceId}
+          series={selectedSeries}
+          latest={selectedSource}
+          onClose={() => setSelectedSourceId(null)}
+        />
+      ) : null}
     </main>
   );
 }

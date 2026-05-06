@@ -9,6 +9,7 @@ export interface MetricCardProps {
   meta?: string;
   icon?: ReactNode;
   demo?: boolean;
+  onSelect?: () => void;
 }
 
 export function formatRate(value?: number): string {
@@ -20,13 +21,23 @@ export function formatBps(value?: number): string | null {
   return `${value > 0 ? '+' : ''}${Math.round(value)} bps`;
 }
 
-export function MetricCard({ label, value, changeBps, meta, icon, demo = false }: MetricCardProps) {
+export function MetricCard({ label, value, changeBps, meta, icon, demo = false, onSelect }: MetricCardProps) {
   const change = formatBps(changeBps);
   const isHigher = typeof changeBps === 'number' && changeBps > 0;
   const isLower = typeof changeBps === 'number' && changeBps < 0;
 
+  const Wrapper = onSelect ? 'button' : 'article';
+
   return (
-    <article className="metric-card panel group overflow-hidden p-5 transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:bg-[#101720]">
+    <Wrapper
+      type={onSelect ? 'button' : undefined}
+      aria-label={onSelect ? `View ${label} history` : undefined}
+      onClick={onSelect}
+      className={clsx(
+        'metric-card panel group w-full overflow-hidden p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:border-white/15 hover:bg-[#101720]',
+        onSelect && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1D9BF0]/60',
+      )}
+    >
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/45">{label}</p>
@@ -52,6 +63,7 @@ export function MetricCard({ label, value, changeBps, meta, icon, demo = false }
       </div>
 
       {demo ? <p className="mt-4 text-[11px] uppercase tracking-[0.16em] text-[#1D9BF0]">Sample data</p> : null}
-    </article>
+      {onSelect ? <p className="mt-4 text-[11px] uppercase tracking-[0.16em] text-white/35 transition group-hover:text-[#8ED0FF]">Click to zoom history</p> : null}
+    </Wrapper>
   );
 }
