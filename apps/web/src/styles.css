@@ -155,6 +155,58 @@ svg { display: block; }
 .rate-detail-chart svg { height: 300px; width: 100%; }
 .rate-detail-chart .h-\[360px\] { height: 300px; }
 
+.rate-detail-compact-dialog {
+  padding: 16px;
+}
+.rate-detail-compact-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.rate-detail-eyebrow {
+  margin: 0 0 2px;
+  color: #1D9BF0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.rate-detail-topline {
+  margin: 0;
+  color: white;
+  font-size: clamp(25px, 4vw, 38px);
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+.rate-detail-primary-chart {
+  margin-top: 0;
+}
+.rate-detail-primary-chart svg,
+.rate-detail-primary-chart .h-\[360px\] {
+  height: min(64vh, 560px);
+}
+.rate-detail-compact-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.rate-detail-compact-summary span {
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  background: rgba(255,255,255,.05);
+  padding: 7px 10px;
+  color: rgba(255,255,255,.76);
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rate-detail-compact-summary .rate-detail-good { color: #a7f3d0; }
+.rate-detail-compact-summary .rate-detail-bad { color: #fecdd3; }
+.rate-detail-compact-summary .rate-detail-muted { color: rgba(255,255,255,.64); }
 @media (max-width: 860px) {
   .rate-detail-body { grid-template-columns: 1fr; }
   .rate-detail-dialog { max-height: 92vh; }
@@ -162,6 +214,18 @@ svg { display: block; }
 @media (max-width: 640px) {
   .rate-detail-stats { grid-template-columns: 1fr; }
   .rate-detail-header { align-items: flex-start; }
+  .rate-detail-compact-dialog {
+    width: calc(100vw - 18px);
+    max-height: calc(100dvh - 28px);
+    padding: 10px;
+    border-radius: 24px;
+  }
+  .rate-detail-eyebrow { font-size: 10px; letter-spacing: .14em; }
+  .rate-detail-topline { font-size: 28px; }
+  .rate-detail-primary-chart svg,
+  .rate-detail-primary-chart .h-\[360px\] { height: min(58dvh, 430px); }
+  .rate-detail-compact-summary { gap: 6px; margin-top: 9px; }
+  .rate-detail-compact-summary span { padding: 6px 8px; font-size: 11px; }
 }
 
 .p-3 { padding: 12px; } .p-4 { padding: 16px; } .p-5 { padding: 20px; } .p-6 { padding: 24px; }

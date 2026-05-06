@@ -74,7 +74,7 @@ export function RateDetailPanel({
   }));
   const changeLabel = formatBps(stats.changeBps) ?? '0 bps';
   const trendLabel = stats.direction === 'down' ? 'Downtrend' : stats.direction === 'up' ? 'Uptrend' : 'Flat trend';
-  const trendClass = stats.direction === 'down' ? 'text-emerald-200' : stats.direction === 'up' ? 'text-red-200' : 'text-white/65';
+  const trendClass = stats.direction === 'down' ? 'rate-detail-good' : stats.direction === 'up' ? 'rate-detail-bad' : 'rate-detail-muted';
   const color = series?.color ?? '#1D9BF0';
 
   return (
@@ -83,50 +83,20 @@ export function RateDetailPanel({
         role="dialog"
         aria-modal="true"
         aria-label={`${label} details`}
-        className="rate-detail-dialog panel"
+        className="rate-detail-dialog panel rate-detail-compact-dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="rate-detail-header">
+        <header className="rate-detail-compact-header">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Zoomed rate history</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-[-0.05em] text-white">{label}</h2>
-            <p className="mt-2 text-sm text-white/45">Historical values and short-term trend for {sourceId}.</p>
+            <p className="rate-detail-eyebrow">Zoomed rate history</p>
+            <h2 className="rate-detail-topline">{label}</h2>
           </div>
-          <button
-            type="button"
-            aria-label="Close rate details"
-            onClick={onClose}
-            className="rate-detail-close"
-          >
+          <button type="button" aria-label="Close rate details" onClick={onClose} className="rate-detail-close">
             <X className="h-5 w-5" />
           </button>
-        </div>
+        </header>
 
-        <div className="rate-detail-body">
-          <div className="rate-detail-stats">
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">Latest</p>
-            <p className="mt-2 font-mono text-3xl font-semibold text-white">{formatRate(stats.latest ?? latest?.rate)}</p>
-            <p className="mt-1 text-xs text-white/35">{formatDate(latest?.observedAt)}</p>
-          </div>
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">Period move</p>
-            <p className={`mt-2 font-mono text-3xl font-semibold ${trendClass}`}>{changeLabel}</p>
-            <p className="mt-1 text-xs text-white/35">{trendLabel}</p>
-          </div>
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">High</p>
-            <p className="mt-2 font-mono text-3xl font-semibold text-white">{formatRate(stats.high)}</p>
-            <p className="mt-1 text-xs text-white/35">Selected range</p>
-          </div>
-          <div className="subpanel p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-white/40">Low</p>
-            <p className="mt-2 font-mono text-3xl font-semibold text-white">{formatRate(stats.low)}</p>
-            <p className="mt-1 text-xs text-white/35">Selected range</p>
-          </div>
-          </div>
-
-          <div className="rate-detail-chart">
+        <div className="rate-detail-chart rate-detail-primary-chart">
           {coords.length ? (
             <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${label} historical rate trend`} className="h-[360px] w-full">
               <defs>
@@ -156,7 +126,15 @@ export function RateDetailPanel({
           ) : (
             <div className="flex h-[360px] items-center justify-center text-sm text-white/45">No historical points are available for this feed yet.</div>
           )}
-          </div>
+        </div>
+
+        <div className="rate-detail-compact-summary" aria-label={`${label} summary`}>
+          <span>{formatRate(stats.latest ?? latest?.rate)} latest</span>
+          <span className={trendClass}>{changeLabel}</span>
+          <span>{trendLabel}</span>
+          <span>High {formatRate(stats.high)}</span>
+          <span>Low {formatRate(stats.low)}</span>
+          <span>{formatDate(latest?.observedAt)}</span>
         </div>
       </section>
     </div>
