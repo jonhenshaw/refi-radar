@@ -11,6 +11,12 @@ const sourceLabels: Record<string, string> = {
 
 const targetRate = 6.25;
 const ranges: RangeKey[] = ['5D', '1M', '3M', '1Y'];
+const trendLabels: Record<RangeKey, string> = {
+  '5D': '5-day trend',
+  '1M': '1-month trend',
+  '3M': '3-month trend',
+  '1Y': '12-month trend',
+};
 
 function formatChangeBps(value?: number): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
@@ -55,11 +61,12 @@ interface MobileDashboardProps {
   range: RangeKey;
   onRangeChange: (range: RangeKey) => void;
   onSelectSource: (sourceId: SourceId) => void;
+  onInspectChart: () => void;
   usingDemo: boolean;
   loading: boolean;
 }
 
-export function MobileDashboard({ latest, series, range, onRangeChange, onSelectSource, usingDemo, loading }: MobileDashboardProps) {
+export function MobileDashboard({ latest, series, range, onRangeChange, onSelectSource, onInspectChart, usingDemo, loading }: MobileDashboardProps) {
   const primary = latest?.primary ?? latest?.sources[0];
   const primaryParts = rateParts(primary?.rate);
   const targetGap = typeof primary?.rate === 'number' ? Math.max(0, Math.round((primary.rate - targetRate) * 100)) : undefined;
@@ -113,7 +120,7 @@ export function MobileDashboard({ latest, series, range, onRangeChange, onSelect
       <section className="mobile-panel mobile-chart-panel">
         <div className="mobile-chart-head">
           <div>
-            <h2>12-month trend</h2>
+            <h2>{trendLabels[range]}</h2>
             <p>MND vs Freddie vs 10Y</p>
           </div>
           <div className="mobile-range-tabs" aria-label="History range">
@@ -130,7 +137,7 @@ export function MobileDashboard({ latest, series, range, onRangeChange, onSelect
             ))}
           </div>
         </div>
-        <RateChart series={series} loading={loading} demo={usingDemo} />
+        <RateChart series={series} loading={loading} demo={usingDemo} onInspect={onInspectChart} />
       </section>
 
       <p className="mobile-section-title">Rates</p>

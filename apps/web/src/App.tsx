@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Bell, LineChart, RadioTower } from 'lucide-rea
 
 import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType, SourceId } from '@refi-radar/shared';
 
+import { ChartInspectPanel } from './components/ChartInspectPanel';
 import { MetricCard } from './components/MetricCard';
 import { MobileDashboard } from './components/MobileDashboard';
 import { RangeTabs } from './components/RangeTabs';
@@ -76,6 +77,7 @@ export default function App() {
   const [series, setSeries] = useState<RateSeries[]>([]);
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [selectedSourceId, setSelectedSourceId] = useState<SourceId | null>(null);
+  const [chartInspectOpen, setChartInspectOpen] = useState(false);
 
   const loadLatest = useCallback(async () => {
     try {
@@ -142,6 +144,7 @@ export default function App() {
         range={range}
         onRangeChange={setRange}
         onSelectSource={setSelectedSourceId}
+        onInspectChart={() => setChartInspectOpen(true)}
         usingDemo={usingDemo}
         loading={latestLoading || seriesLoading}
       />
@@ -200,7 +203,7 @@ export default function App() {
             </div>
             <RangeTabs value={range} onChange={setRange} />
           </div>
-          <RateChart series={series} loading={seriesLoading} demo={usingDemo} />
+          <RateChart series={series} loading={seriesLoading} demo={usingDemo} onInspect={() => setChartInspectOpen(true)} />
         </div>
 
         <div className="right-rail space-y-6">
@@ -250,6 +253,8 @@ export default function App() {
         </section>
       </section>
       </div>
+
+      {chartInspectOpen ? <ChartInspectPanel series={series} range={range} onClose={() => setChartInspectOpen(false)} /> : null}
 
       {selectedSourceId ? (
         <RateDetailPanel

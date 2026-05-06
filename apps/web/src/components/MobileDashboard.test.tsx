@@ -71,6 +71,7 @@ describe('MobileDashboard', () => {
         range="1Y"
         onRangeChange={vi.fn()}
         onSelectSource={vi.fn()}
+        onInspectChart={vi.fn()}
         usingDemo={false}
         loading={false}
       />,
@@ -88,9 +89,37 @@ describe('MobileDashboard', () => {
     expect(screen.getByText('6.43')).toBeInTheDocument();
   });
 
-  it('keeps source rows tappable and range pills interactive', () => {
+  it('updates the trend label to match the active date range', () => {
+    const labels: Record<RangeKey, RegExp> = {
+      '5D': /5-day trend/i,
+      '1M': /1-month trend/i,
+      '3M': /3-month trend/i,
+      '1Y': /12-month trend/i,
+    };
+
+    for (const [range, label] of Object.entries(labels) as Array<[RangeKey, RegExp]>) {
+      const { unmount } = render(
+        <MobileDashboard
+          latest={latest}
+          series={series}
+          range={range}
+          onRangeChange={vi.fn()}
+          onSelectSource={vi.fn()}
+          onInspectChart={vi.fn()}
+          usingDemo={false}
+          loading={false}
+        />,
+      );
+
+      expect(screen.getByRole('heading', { name: label })).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('keeps graph, source rows, and range pills interactive', () => {
     const onRangeChange = vi.fn();
     const onSelectSource = vi.fn();
+    const onInspectChart = vi.fn();
 
     render(
       <MobileDashboard
@@ -99,6 +128,7 @@ describe('MobileDashboard', () => {
         range="1Y"
         onRangeChange={onRangeChange}
         onSelectSource={onSelectSource}
+        onInspectChart={onInspectChart}
         usingDemo={false}
         loading={false}
       />,
@@ -106,6 +136,9 @@ describe('MobileDashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /show 1M history/i }));
     expect(onRangeChange).toHaveBeenCalledWith('1M');
+
+    fireEvent.click(screen.getByRole('button', { name: /open mortgage rate history chart/i }));
+    expect(onInspectChart).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view MND 30Y Fixed details/i }));
     expect(onSelectSource).toHaveBeenCalledWith('mnd_30y_fixed');
