@@ -1,13 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Bell, RadioTower } from 'lucide-react';
+import { Activity, AlertTriangle, Bell, Loader2, RadioTower } from 'lucide-react';
 
-import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType, SourceId } from '@refi-radar/shared';
+import type {
+  AlertEvent,
+  LatestSnapshot,
+  LocalAlertRule,
+  RateObservation,
+  RefiResult,
+  SourceHealth as SourceHealthType,
+  SourceId,
+} from '@refi-radar/shared';
 
+import { AlertRulesDialog } from './components/alerts/AlertRulesDialog';
+import { AlertsFeed } from './components/alerts/AlertsFeed';
 import { ChartDialog } from './components/chart/ChartDialog';
 import { RangeTabs } from './components/RangeTabs';
 import { RateChart } from './components/chart/RateChart';
 import { RefiCalculator } from './components/RefiCalculator';
 import { SourceHealth } from './components/SourceHealth';
+import { ToastProvider, useToast } from './components/toast/ToastProvider';
+import { useAlertEvaluator } from './hooks/useAlertEvaluator';
+import { useAlertEvents } from './hooks/useAlertEvents';
+import { useAlertRules } from './hooks/useAlertRules';
 import { getCompareSeries, getLatest, type RangeKey, type RateSeries } from './lib/api';
 
 const TARGET_RATE = 6.25;
@@ -126,6 +140,14 @@ function liveCountText(snapshot: LatestSnapshot | null, usingDemo: boolean): str
 }
 
 export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
   const [latest, setLatest] = useState<LatestSnapshot | null>(null);
   const [latestLoading, setLatestLoading] = useState(true);
   const [latestError, setLatestError] = useState<string | null>(null);
@@ -135,6 +157,12 @@ export default function App() {
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [selectedSourceId, setSelectedSourceId] = useState<SourceId | null>(null);
   const [chartInspectOpen, setChartInspectOpen] = useState(false);
+  const [alertsDialogOpen, setAlertsDialogOpen] = useState(false);
+  const [refiResult, setRefiResult] = useState<RefiResult | null>(null);
+
+  const { rules, addRule, toggleRule, deleteRule, replaceRules } = useAlertRules();
+  const { events, appendEvents } = useAlertEvents();
+  const { pushToast } = useToast();
 
   const loadLatest = useCallback(async () => {
     try {
@@ -196,6 +224,31 @@ export default function App() {
 
   const dialogOpen = chartInspectOpen || selectedSourceId !== null;
 
+  const handleAlertFire = useCallback(
+    (fired: AlertEvent[], updatedRules: LocalAlertRule[]) => {
+      appendEvents(fired);
+      replaceRules(updatedRules);
+      for (const event of fired) {
+        pushToast({ title: 'Alert triggered', body: event.message, tone: 'alert' });
+      }
+    },
+    [appendEvents, replaceRules, pushToast],
+  );
+
+  useAlertEvaluator({
+    rules,
+    snapshot: latest,
+    series,
+    refiBreakEvenMonths:
+      refiResult?.breakEvenMonths !== null && refiResult?.breakEvenMonths !== undefined && Number.isFinite(refiResult.breakEvenMonths)
+        ? refiResult.breakEvenMonths
+        : undefined,
+    enabled: !usingDemo,
+    onFire: handleAlertFire,
+  });
+
+  const enabledRulesCount = rules.filter((r) => r.enabled).length;
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -230,7 +283,15 @@ export default function App() {
         <div className="hero-side">
           <p className={`hero-move tone-${primaryChange.tone}`}>{primaryChange.text}</p>
           <p className="hero-meta">
-            <Activity aria-hidden="true" /> {latestLoading ? 'Loading latest rates…' : freshnessText(latest ?? undefined)}
+            {latestLoading ? (
+              <>
+                <Loader2 className="spin" aria-hidden="true" /> Loading latest rates…
+              </>
+            ) : (
+              <>
+                <Activity aria-hidden="true" /> {freshnessText(latest ?? undefined)}
+              </>
+            )}
           </p>
         </div>
       </section>
@@ -295,7 +356,11 @@ export default function App() {
             <span className={`pill ${usingDemo ? 'pill-warn' : 'pill-good'}`}>{usingDemo ? 'demo' : 'live'}</span>
           </header>
           {latestLoading ? (
-            <div className="sources-skeleton" aria-hidden="true" />
+            <ul className="sources-skeleton" aria-hidden="true">
+              <li />
+              <li />
+              <li />
+            </ul>
           ) : sources.length ? (
             <ul className="sources-list">
               {sources.map((source) => {
@@ -340,23 +405,26 @@ export default function App() {
                 <h2 className="card-title">{typeof targetGapBps === 'number' && targetGapBps <= 0 ? 'Refi window open' : 'Keep watching'}</h2>
               </div>
             </div>
-            <button type="button" className="alert-toggle" aria-pressed="false">Alert on</button>
+            <button
+              type="button"
+              className="alert-toggle"
+              aria-pressed={enabledRulesCount > 0}
+              onClick={() => setAlertsDialogOpen(true)}
+            >
+              {enabledRulesCount > 0 ? `Alerts · ${enabledRulesCount}` : 'Set alert'}
+            </button>
           </header>
           <p className="signal-body">
             {typeof targetGapBps === 'number'
               ? `Rates are ${targetGapBps} bps above your ${TARGET_RATE.toFixed(2)}% target.`
               : 'Set a target rate to start tracking your refi window.'}
           </p>
-          <ul className="watch-list">
-            {['Notify when 30Y drops below 6.25%', 'Flag 20 bps intraday moves', 'Weekly survey spread widening'].map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
+          <AlertsFeed rules={rules} events={events} onManage={() => setAlertsDialogOpen(true)} />
         </section>
       </div>
 
       <div className="layout-split">
-        <RefiCalculator suggestedRate={primaryRate} />
+        <RefiCalculator suggestedRate={primaryRate} onResult={setRefiResult} />
         <section className="panel notes-card">
           <p className="card-eyebrow">Market notes</p>
           <h2 className="card-title">Refi rule of thumb</h2>
@@ -396,6 +464,22 @@ export default function App() {
           ariaLabel="Mortgage rate history chart"
         />
       </ChartDialog>
+
+      <AlertRulesDialog
+        open={alertsDialogOpen}
+        onClose={() => setAlertsDialogOpen(false)}
+        rules={rules}
+        onAdd={(input) => {
+          const created = addRule(input);
+          pushToast({
+            title: 'Alert saved',
+            body: `Watching ${created.sourceId} · ${created.type.replace(/_/g, ' ')}`,
+            tone: 'success',
+          });
+        }}
+        onToggle={toggleRule}
+        onDelete={deleteRule}
+      />
     </main>
   );
 }

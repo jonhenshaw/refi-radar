@@ -2,6 +2,25 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { breakEvenMonths, monthlyPayment, monthlySavings, type RefiInput, type RefiResult } from '@refi-radar/shared';
 
+interface FieldValidation {
+  min?: number;
+  max?: number;
+  message?: string;
+}
+
+function validate(value: string, rules: FieldValidation): string | null {
+  if (value.trim() === '') return 'Required';
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 'Must be a number';
+  if (rules.min !== undefined && parsed < rules.min) {
+    return rules.message ?? `Must be ≥ ${rules.min}`;
+  }
+  if (rules.max !== undefined && parsed > rules.max) {
+    return rules.message ?? `Must be ≤ ${rules.max}`;
+  }
+  return null;
+}
+
 export type { RefiInput, RefiResult } from '@refi-radar/shared';
 
 export function calculateRefiScenario(input: RefiInput): RefiResult {
@@ -29,22 +48,25 @@ interface FieldProps {
   label: string;
   value: string;
   suffix?: string;
+  error?: string | null;
   onChange: (value: string) => void;
 }
 
-function Field({ label, value, suffix, onChange }: FieldProps) {
+function Field({ label, value, suffix, error, onChange }: FieldProps) {
   return (
     <label className="field">
       <span className="field-label">{label}</span>
-      <span className="field-input">
+      <span className={`field-input${error ? ' field-input-error' : ''}`}>
         <input
           aria-label={label}
+          aria-invalid={error ? true : undefined}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           inputMode="decimal"
         />
         {suffix ? <span className="field-suffix">{suffix}</span> : null}
       </span>
+      {error ? <span className="field-error">{error}</span> : null}
     </label>
   );
 }
@@ -64,7 +86,12 @@ function SummaryStat({ label, value, emphasis = 'flat' }: SummaryStatProps) {
   );
 }
 
-export function RefiCalculator({ suggestedRate = 6.35 }: { suggestedRate?: number }) {
+interface RefiCalculatorProps {
+  suggestedRate?: number;
+  onResult?: (result: RefiResult) => void;
+}
+
+export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculatorProps) {
   const [balance, setBalance] = useState('425000');
   const [currentRate, setCurrentRate] = useState('7.15');
   const [newRate, setNewRate] = useState(String(suggestedRate.toFixed(2)));
@@ -78,17 +105,30 @@ export function RefiCalculator({ suggestedRate = 6.35 }: { suggestedRate?: numbe
     }
   }, [suggestedRate]);
 
+  const balanceError = validate(balance, { min: 1, message: 'Must be positive' });
+  const currentRateError = validate(currentRate, { min: 0, max: 30, message: 'Enter a rate between 0 and 30' });
+  const newRateError = validate(newRate, { min: 0, max: 30, message: 'Enter a rate between 0 and 30' });
+  const termError = validate(termYears, { min: 1, max: 50, message: 'Term between 1 and 50 years' });
+  const closingError = validate(closingCosts, { min: 0, message: 'Cannot be negative' });
+  const hasError = !!(balanceError || currentRateError || newRateError || termError || closingError);
+
   const result = useMemo(
     () =>
-      calculateRefiScenario({
-        balance: numericValue(balance),
-        currentRate: numericValue(currentRate),
-        newRate: numericValue(newRate),
-        termYears: numericValue(termYears),
-        closingCosts: numericValue(closingCosts),
-      }),
-    [balance, closingCosts, currentRate, newRate, termYears],
+      hasError
+        ? { currentPayment: 0, newPayment: 0, monthlySavings: 0, breakEvenMonths: null as number | null }
+        : calculateRefiScenario({
+            balance: numericValue(balance),
+            currentRate: numericValue(currentRate),
+            newRate: numericValue(newRate),
+            termYears: numericValue(termYears),
+            closingCosts: numericValue(closingCosts),
+          }),
+    [hasError, balance, closingCosts, currentRate, newRate, termYears],
   );
+
+  useEffect(() => {
+    onResult?.(result);
+  }, [onResult, result]);
 
   return (
     <section className="panel calculator-card">
@@ -101,35 +141,45 @@ export function RefiCalculator({ suggestedRate = 6.35 }: { suggestedRate?: numbe
       </header>
 
       <div className="calculator-grid">
-        <Field label="Loan balance" value={balance} onChange={setBalance} />
-        <Field label="Current rate" value={currentRate} suffix="%" onChange={setCurrentRate} />
+        <Field label="Loan balance" value={balance} error={balanceError} onChange={setBalance} />
+        <Field label="Current rate" value={currentRate} suffix="%" error={currentRateError} onChange={setCurrentRate} />
         <Field
           label="New rate"
           value={newRate}
           suffix="%"
+          error={newRateError}
           onChange={(value) => {
             userEditedNewRate.current = true;
             setNewRate(value);
           }}
         />
-        <Field label="Term years" value={termYears} suffix="years" onChange={setTermYears} />
+        <Field label="Term years" value={termYears} suffix="years" error={termError} onChange={setTermYears} />
         <div className="calculator-grid-full">
-          <Field label="Closing costs" value={closingCosts} onChange={setClosingCosts} />
+          <Field label="Closing costs" value={closingCosts} error={closingError} onChange={setClosingCosts} />
         </div>
       </div>
 
       <div data-testid="refi-summary" className="calculator-summary">
-        <SummaryStat label="Current payment" value={currency.format(result.currentPayment)} />
-        <SummaryStat label="New payment" value={currency.format(result.newPayment)} />
+        <SummaryStat
+          label="Current payment"
+          value={hasError ? '—' : currency.format(result.currentPayment)}
+        />
+        <SummaryStat label="New payment" value={hasError ? '—' : currency.format(result.newPayment)} />
         <SummaryStat
           label="Monthly savings"
-          value={`${currency.format(result.monthlySavings)}/mo`}
-          emphasis={result.monthlySavings > 0 ? 'good' : 'flat'}
+          value={hasError ? '—' : `${currency.format(result.monthlySavings)}/mo`}
+          emphasis={!hasError && result.monthlySavings > 0 ? 'good' : 'flat'}
         />
         <SummaryStat
           label="Break-even"
-          value={result.breakEvenMonths === null || !Number.isFinite(result.breakEvenMonths) ? 'Never' : `${result.breakEvenMonths} months`}
-          emphasis={result.monthlySavings > 0 ? 'good' : 'flat'}
+          value={
+            hasError
+              ? '—'
+              : result.breakEvenMonths === null || !Number.isFinite(result.breakEvenMonths)
+                ? 'Never'
+                : `${result.breakEvenMonths} months`
+          }
+          emphasis={!hasError && result.monthlySavings > 0 ? 'good' : 'flat'}
         />
       </div>
     </section>
