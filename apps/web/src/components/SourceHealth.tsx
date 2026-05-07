@@ -8,30 +8,33 @@ const labels: Record<string, string> = {
   fred_dgs10: 'FRED 10Y Treasury',
 };
 
+function statusFor(item: SourceHealthType): { label: string; tone: 'good' | 'warn' | 'bad'; Icon: typeof CheckCircle2 } {
+  if (item.ok) return { label: 'live', tone: 'good', Icon: CheckCircle2 };
+  if (item.stale) return { label: 'stale', tone: 'warn', Icon: Clock3 };
+  return { label: 'down', tone: 'bad', Icon: AlertCircle };
+}
+
 export function SourceHealth({ items, demo = false }: { items: SourceHealthType[]; demo?: boolean }) {
-  if (!items.length) {
-    return <p className="text-sm text-white/45">No source health checks available yet.</p>;
-  }
+  if (!items.length) return null;
 
   return (
-    <div className="space-y-3">
+    <ul className="health-list" aria-label="Source health">
       {items.map((item) => {
-        const Icon = item.ok ? CheckCircle2 : item.stale ? Clock3 : AlertCircle;
+        const status = statusFor(item);
+        const Icon = status.Icon;
         return (
-          <div key={item.sourceId} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.025] p-3">
-            <div className="flex items-center gap-3">
-              <Icon className={item.ok ? 'h-4 w-4 text-emerald-300' : 'h-4 w-4 text-amber-300'} />
-              <div>
-                <p className="text-sm font-medium text-white/85">{labels[item.sourceId] ?? item.sourceId}</p>
-                <p className="text-xs text-white/35">{item.lastError ?? (item.lastSuccessAt ? `Last sync ${new Date(item.lastSuccessAt).toLocaleString()}` : 'Waiting for first sync')}</p>
-              </div>
+          <li key={item.sourceId} className="health-row">
+            <Icon className={`health-icon tone-${status.tone}`} aria-hidden="true" />
+            <div className="health-row-main">
+              <strong>{labels[item.sourceId] ?? item.sourceId}</strong>
+              <small>
+                {item.lastError ?? (item.lastSuccessAt ? `Last sync ${new Date(item.lastSuccessAt).toLocaleString()}` : 'Waiting for first sync')}
+              </small>
             </div>
-            <span className="rounded-full border border-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-white/45">
-              {demo ? 'demo' : item.ok ? 'live' : item.stale ? 'stale' : 'down'}
-            </span>
-          </div>
+            <span className={`pill pill-${demo ? 'warn' : status.tone}`}>{demo ? 'demo' : status.label}</span>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

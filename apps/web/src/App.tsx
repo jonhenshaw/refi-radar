@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, AlertTriangle, Bell, LineChart, RadioTower } from 'lucide-react';
+import { Activity, AlertTriangle, Bell, RadioTower } from 'lucide-react';
 
 import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType, SourceId } from '@refi-radar/shared';
 
 import { ChartDialog } from './components/chart/ChartDialog';
-import { MetricCard } from './components/MetricCard';
-import { MobileDashboard } from './components/MobileDashboard';
 import { RangeTabs } from './components/RangeTabs';
 import { RateChart } from './components/chart/RateChart';
 import { RefiCalculator } from './components/RefiCalculator';
 import { SourceHealth } from './components/SourceHealth';
 import { getCompareSeries, getLatest, type RangeKey, type RateSeries } from './lib/api';
 
-const sourceLabels: Record<string, string> = {
+const TARGET_RATE = 6.25;
+
+const sourceLabels: Record<SourceId, string> = {
   mnd_30y_fixed: 'MND 30Y Fixed',
   fred_mortgage30us: 'FRED Survey',
   fred_dgs10: '10Y Treasury',
+};
+
+const sourceMeta: Record<SourceId, string> = {
+  mnd_30y_fixed: 'daily market feed',
+  fred_mortgage30us: 'weekly official avg',
+  fred_dgs10: 'market proxy',
 };
 
 const now = new Date().toISOString();
@@ -73,10 +79,50 @@ function makeDemoSeries(range: RangeKey): RateSeries[] {
   }));
 }
 
-function freshness(snapshot?: LatestSnapshot): string {
+function freshnessText(snapshot?: LatestSnapshot): string {
   const fetchedAt = snapshot?.primary?.fetchedAt ?? snapshot?.sources[0]?.fetchedAt;
   if (!fetchedAt) return 'Waiting for market data';
   return `Updated ${new Date(fetchedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
+function formatChangeBps(value?: number): { text: string; tone: 'good' | 'bad' | 'flat' | 'unknown' } {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return { text: '—', tone: 'unknown' };
+  const sign = value > 0 ? '+' : '';
+  const tone = value < 0 ? 'good' : value > 0 ? 'bad' : 'flat';
+  return { text: `${sign}${Math.round(value)} bps`, tone };
+}
+
+function lowestRate(series: RateSeries[], sourceId: SourceId): number | undefined {
+  const points = series.find((s) => s.sourceId === sourceId)?.points ?? [];
+  const values = points.map((p) => p.rate).filter((v) => Number.isFinite(v));
+  return values.length ? Math.min(...values) : undefined;
+}
+
+function rangeLowLabel(range: RangeKey): string {
+  switch (range) {
+    case '5D':
+      return '5D low';
+    case '1M':
+      return '1M low';
+    case '3M':
+      return '3M low';
+    case '1Y':
+      return '12M low';
+    case '5Y':
+      return '5Y low';
+    case 'MAX':
+      return 'All-time low';
+    default:
+      return 'Recent low';
+  }
+}
+
+function liveCountText(snapshot: LatestSnapshot | null, usingDemo: boolean): string {
+  if (usingDemo) return 'demo data';
+  const liveCount = snapshot?.health.filter((h) => h.ok && !h.stale).length ?? 0;
+  const total = snapshot?.health.length ?? 0;
+  if (!total) return 'syncing…';
+  return liveCount === total ? `${liveCount} sources live` : `${liveCount}/${total} sources live`;
 }
 
 export default function App() {
@@ -102,7 +148,7 @@ export default function App() {
         setUsingDemo(false);
         setLatestError(null);
       }
-    } catch (error) {
+    } catch {
       setLatest(demoLatest);
       setUsingDemo(true);
       setLatestError('Live API unavailable in this environment; displaying sample data.');
@@ -122,10 +168,9 @@ export default function App() {
     setSeriesLoading(true);
     getCompareSeries(range)
       .then((items) => {
-        if (!cancelled) {
-          const hasPoints = items.some((item) => item.points.length > 0);
-          setSeries(hasPoints ? items : makeDemoSeries(range));
-        }
+        if (cancelled) return;
+        const hasPoints = items.some((item) => item.points.length > 0);
+        setSeries(hasPoints ? items : makeDemoSeries(range));
       })
       .catch(() => {
         if (!cancelled) setSeries(makeDemoSeries(range));
@@ -139,142 +184,202 @@ export default function App() {
   }, [range]);
 
   const sources = latest?.sources ?? [];
-  const primaryRate = latest?.primary?.rate ?? sources[0]?.rate;
-  const avgChange = useMemo(() => {
+  const primary = latest?.primary ?? sources[0];
+  const primaryRate = primary?.rate;
+  const primaryChange = formatChangeBps(primary?.changeBps);
+  const targetGapBps = typeof primaryRate === 'number' ? Math.max(0, Math.round((primaryRate - TARGET_RATE) * 100)) : undefined;
+  const lowAtRange = lowestRate(series, 'mnd_30y_fixed') ?? primaryRate;
+  const avgMoveBps = useMemo(() => {
     const changes = sources.map((source) => source.changeBps).filter((value): value is number => typeof value === 'number');
-    return changes.length ? changes.reduce((sum, value) => sum + value, 0) / changes.length : undefined;
+    return changes.length ? Math.round(changes.reduce((sum, value) => sum + value, 0) / changes.length) : undefined;
   }, [sources]);
 
-  return (
-    <main className="app-shell mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-      <MobileDashboard
-        latest={latest}
-        series={series}
-        range={range}
-        onRangeChange={setRange}
-        onSelectSource={setSelectedSourceId}
-        onInspectChart={() => setChartInspectOpen(true)}
-        usingDemo={usingDemo}
-        loading={latestLoading || seriesLoading}
-      />
+  const dialogOpen = chartInspectOpen || selectedSourceId !== null;
 
-      <div className="desktop-dashboard">
-      <header className="hero flex flex-col gap-6 border-b border-white/8 pb-8 pt-2 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#1D9BF0]/20 bg-[#1D9BF0]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8ED0FF]">
-            <RadioTower className="h-3.5 w-3.5" /> Live mortgage intelligence
-          </div>
-          <h1 className="mt-5 max-w-3xl text-5xl font-semibold tracking-[-0.07em] text-white sm:text-6xl">Refi Radar</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-white/55">A dark, data-dense command center for tracking refinance windows across market estimates, surveys, and treasury proxies.</p>
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <div className="topbar-brand">
+          <RadioTower className="topbar-brand-icon" aria-hidden="true" />
+          <span>Refi Radar</span>
         </div>
-        <div className="panel flex items-center gap-3 px-4 py-3 text-sm text-white/55">
-          <Activity className="h-4 w-4 text-[#1D9BF0]" />
-          <span>{latestLoading ? 'Loading latest rates…' : freshness(latest ?? undefined)}</span>
+        <div className="topbar-status" aria-live="polite">
+          <span className={`live-dot ${usingDemo ? 'live-dot-demo' : 'live-dot-on'}`} aria-hidden="true" />
+          <span>{liveCountText(latest, usingDemo)}</span>
         </div>
       </header>
 
       {latestError ? (
-        <div className="mt-6 flex items-start gap-3 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm text-amber-100">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+        <div className="banner banner-warn" role="status">
+          <AlertTriangle aria-hidden="true" />
           <div>
-            <p className="font-semibold">Frontend-only fallback enabled</p>
-            <p className="mt-1 text-amber-100/70">{latestError} The dashboard is clearly marked where sample/demo data is used.</p>
+            <p className="banner-title">Sample data is showing</p>
+            <p className="banner-body">{latestError}</p>
           </div>
         </div>
       ) : null}
 
-      <section className="metrics-grid mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {latestLoading
-          ? Array.from({ length: 4 }, (_, index) => <div key={index} className="panel h-40 animate-pulse" />)
-          : sources.length
-            ? sources.map((source) => (
-                <MetricCard
-                  key={source.sourceId}
-                  label={sourceLabels[source.sourceId] ?? source.sourceId}
-                  value={source.rate}
-                  changeBps={source.changeBps}
-                  meta={source.confidence.replace('_', ' ')}
-                  icon={<LineChart className="h-5 w-5" />}
-                  demo={usingDemo}
-                  onSelect={() => setSelectedSourceId(source.sourceId)}
-                />
-              ))
-            : <MetricCard label="No observations" value={undefined} meta="Waiting for API data" icon={<LineChart className="h-5 w-5" />} />}
-        <MetricCard label="Avg move" value={avgChange === undefined ? undefined : avgChange / 100} changeBps={avgChange} meta="Across tracked feeds" icon={<Activity className="h-5 w-5" />} demo={usingDemo} />
+      <section className="hero">
+        <div className="hero-main">
+          <p className="hero-eyebrow">{sourceLabels[primary?.sourceId ?? 'mnd_30y_fixed']}</p>
+          <p className="hero-rate" aria-label={primaryRate ? `${primaryRate.toFixed(2)} percent` : 'No primary rate'}>
+            <span className="hero-rate-num">{primaryRate?.toFixed(2) ?? '—'}</span>
+            <span className="hero-rate-suffix">%</span>
+          </p>
+        </div>
+        <div className="hero-side">
+          <p className={`hero-move tone-${primaryChange.tone}`}>{primaryChange.text}</p>
+          <p className="hero-meta">
+            <Activity aria-hidden="true" /> {latestLoading ? 'Loading latest rates…' : freshnessText(latest ?? undefined)}
+          </p>
+        </div>
       </section>
 
-      <section className="dashboard-grid mt-6 grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
-        <div className="panel p-5">
-          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="micro-strip" aria-label="Refinance context">
+        <article className="micro-card">
+          <p className="micro-label">Target gap</p>
+          <p className="micro-value">
+            {targetGapBps ?? '—'}
+            {typeof targetGapBps === 'number' ? <span className="micro-unit">bps</span> : null}
+          </p>
+          <p className="micro-sub">to {TARGET_RATE.toFixed(2)}%</p>
+        </article>
+        <article className="micro-card">
+          <p className="micro-label">{rangeLowLabel(range)}</p>
+          <p className="micro-value">
+            {typeof lowAtRange === 'number' ? lowAtRange.toFixed(2) : '—'}
+            {typeof lowAtRange === 'number' ? <span className="micro-unit">%</span> : null}
+          </p>
+          <p className="micro-sub">in selected range</p>
+        </article>
+        <article className="micro-card">
+          <p className="micro-label">Avg move</p>
+          <p className={`micro-value tone-${formatChangeBps(avgMoveBps).tone}`}>{formatChangeBps(avgMoveBps).text}</p>
+          <p className="micro-sub">across feeds</p>
+        </article>
+        <article className="micro-card micro-signal">
+          <p className="micro-label">Signal</p>
+          <p className="micro-value tone-accent">{typeof targetGapBps === 'number' && targetGapBps <= 0 ? 'Refi window' : 'Watch'}</p>
+          <p className="micro-sub">{typeof targetGapBps === 'number' ? `${targetGapBps} bps to target` : 'awaiting data'}</p>
+        </article>
+      </section>
+
+      <section className="chart-card panel" aria-label="Multi-source rate trend">
+        <header className="chart-card-head">
+          <div>
+            <p className="chart-card-eyebrow">Rate history</p>
+            <h2 className="chart-card-title">Multi-source trend</h2>
+          </div>
+          <div className="chart-card-controls">
+            <RangeTabs value={range} onChange={setRange} />
+            <button
+              type="button"
+              className="chart-expand-button"
+              aria-label="Open expanded chart view"
+              onClick={() => setChartInspectOpen(true)}
+            >
+              Expand
+            </button>
+          </div>
+        </header>
+        <RateChart series={series} loading={seriesLoading} demo={usingDemo} />
+      </section>
+
+      <div className="layout-split">
+        <section className="panel sources-card" aria-label="Rate sources">
+          <header className="card-head">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Rate history</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Multi-source trend</h2>
+              <p className="card-eyebrow">Sources</p>
+              <h2 className="card-title">Live feeds</h2>
             </div>
-            <div className="flex items-center gap-2">
-              <RangeTabs value={range} onChange={setRange} />
-              <button
-                type="button"
-                className="chart-expand-button"
-                aria-label="Expand chart"
-                onClick={() => setChartInspectOpen(true)}
-              >
-                Expand
-              </button>
-            </div>
-          </div>
-          <RateChart series={series} loading={seriesLoading} demo={usingDemo} />
-        </div>
-
-        <div className="right-rail space-y-6">
-          <section className="panel p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Source health</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Ingestion status</h2>
-              </div>
-              <span className="rounded-full bg-emerald-300/10 px-3 py-1 text-xs text-emerald-200">{usingDemo ? 'demo' : 'live'}</span>
-            </div>
-            <SourceHealth items={latest?.health ?? []} demo={usingDemo} />
-          </section>
-
-          <section className="panel p-5">
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2 text-[#1D9BF0]"><Bell className="h-5 w-5" /></div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Alerts</p>
-                <h2 className="text-xl font-semibold tracking-[-0.04em] text-white">Watchlist skeleton</h2>
-              </div>
-            </div>
-            <div className="mt-5 space-y-3">
-              {['Notify when 30Y drops below 6.25%', 'Flag 20 bps intraday moves', 'Weekly survey spread widening'].map((item) => (
-                <div key={item} className="rounded-2xl border border-white/8 bg-[#111822] p-3 text-sm text-white/60">{item}</div>
-              ))}
-            </div>
-          </section>
-        </div>
-      </section>
-
-      <section className="lower-grid mt-6 grid gap-6 lg:grid-cols-[0.95fr_1fr]">
-        <RefiCalculator suggestedRate={primaryRate} />
-        <section className="panel p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Market notes</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Refi signal readout</h2>
-          <div className="mt-6 grid gap-3">
-            <div className="subpanel p-4">
-              <p className="text-sm text-white/55">Primary mortgage rate</p>
-              <p className="mt-2 font-mono text-3xl font-semibold text-white">{primaryRate?.toFixed(2) ?? '—'}%</p>
-            </div>
-            <div className="subpanel p-4">
-              <p className="text-sm text-white/55">Rule of thumb</p>
-              <p className="mt-2 text-sm leading-6 text-white/65">A refinance starts to look interesting when your quoted rate is 50–75 bps below your current note rate and closing costs break even inside your hold period.</p>
-            </div>
-          </div>
+            <span className={`pill ${usingDemo ? 'pill-warn' : 'pill-good'}`}>{usingDemo ? 'demo' : 'live'}</span>
+          </header>
+          {latestLoading ? (
+            <div className="sources-skeleton" aria-hidden="true" />
+          ) : sources.length ? (
+            <ul className="sources-list">
+              {sources.map((source) => {
+                const change = formatChangeBps(source.changeBps);
+                return (
+                  <li key={source.sourceId}>
+                    <button
+                      type="button"
+                      className="source-row"
+                      aria-label={`View ${sourceLabels[source.sourceId] ?? source.sourceId} details`}
+                      onClick={() => setSelectedSourceId(source.sourceId)}
+                    >
+                      <span className="source-row-main">
+                        <strong>{sourceLabels[source.sourceId] ?? source.sourceId}</strong>
+                        <small>{sourceMeta[source.sourceId] ?? source.confidence.replace('_', ' ')}</small>
+                      </span>
+                      <span className="source-row-rate">
+                        <strong>
+                          {source.rate.toFixed(2)}
+                          <span className="source-row-unit">%</span>
+                        </strong>
+                        <em className={`tone-${change.tone}`}>{change.text}</em>
+                      </span>
+                      <span className="source-row-chev" aria-hidden="true">›</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="empty-state">Waiting for API data.</p>
+          )}
+          <SourceHealth items={latest?.health ?? []} demo={usingDemo} />
         </section>
-      </section>
+
+        <section className="panel signal-card">
+          <header className="card-head">
+            <div className="card-head-icon-row">
+              <div className="card-icon"><Bell aria-hidden="true" /></div>
+              <div>
+                <p className="card-eyebrow">Refi signal</p>
+                <h2 className="card-title">{typeof targetGapBps === 'number' && targetGapBps <= 0 ? 'Refi window open' : 'Keep watching'}</h2>
+              </div>
+            </div>
+            <button type="button" className="alert-toggle" aria-pressed="false">Alert on</button>
+          </header>
+          <p className="signal-body">
+            {typeof targetGapBps === 'number'
+              ? `Rates are ${targetGapBps} bps above your ${TARGET_RATE.toFixed(2)}% target.`
+              : 'Set a target rate to start tracking your refi window.'}
+          </p>
+          <ul className="watch-list">
+            {['Notify when 30Y drops below 6.25%', 'Flag 20 bps intraday moves', 'Weekly survey spread widening'].map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
       </div>
 
+      <div className="layout-split">
+        <RefiCalculator suggestedRate={primaryRate} />
+        <section className="panel notes-card">
+          <p className="card-eyebrow">Market notes</p>
+          <h2 className="card-title">Refi rule of thumb</h2>
+          <p className="notes-body">
+            A refinance starts to look interesting when your quoted rate is 50–75 bps below your current note rate and closing
+            costs break even inside your hold period.
+          </p>
+          {typeof primaryRate === 'number' ? (
+            <p className="notes-stat">
+              <span>Today's primary</span>
+              <strong>{primaryRate.toFixed(2)}%</strong>
+            </p>
+          ) : null}
+        </section>
+      </div>
+
+      <footer className="data-health" role="contentinfo">
+        <span>Data health</span>
+        <strong>{usingDemo ? 'Sample data' : `${liveCountText(latest, usingDemo)} · ${freshnessText(latest ?? undefined).toLowerCase()}`}</strong>
+      </footer>
+
       <ChartDialog
-        open={chartInspectOpen || selectedSourceId !== null}
+        open={dialogOpen}
         onClose={() => {
           setChartInspectOpen(false);
           setSelectedSourceId(null);
