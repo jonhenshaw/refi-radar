@@ -69,6 +69,40 @@ svg { display: block; }
 .lower-grid { grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1fr); }
 .right-rail { display: grid; gap: 24px; }
 
+.range-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+.range-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 8px 12px;
+  min-width: 44px;
+  min-height: 36px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+.range-tab:hover { color: white; }
+.range-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(29, 155, 240, 0.6);
+}
+.range-tab.active {
+  background: #1D9BF0;
+  color: white;
+  box-shadow: 0 0 24px rgba(29, 155, 240, 0.35);
+}
+
 .metric-card { padding: 20px; transition: transform .2s ease, border-color .2s ease; }
 .metric-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.16); }
 .metric-card > div:first-child,

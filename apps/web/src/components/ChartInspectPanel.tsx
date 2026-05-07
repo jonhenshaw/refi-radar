@@ -5,10 +5,13 @@ import { RateChart } from './RateChart';
 import { formatRate } from './MetricCard';
 
 const compactRangeLabels: Record<RangeKey, string> = {
+  '1D': '1D',
   '5D': '5D',
   '1M': '1M',
   '3M': '3M',
   '1Y': '1Y',
+  '5Y': '5Y',
+  MAX: 'MAX',
 };
 
 function countPoints(series: RateSeries[]): number {

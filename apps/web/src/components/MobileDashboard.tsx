@@ -10,12 +10,15 @@ const sourceLabels: Record<string, string> = {
 };
 
 const targetRate = 6.25;
-const ranges: RangeKey[] = ['5D', '1M', '3M', '1Y'];
+const ranges: RangeKey[] = ['5D', '1M', '3M', '1Y', '5Y', 'MAX'];
 const trendLabels: Record<RangeKey, string> = {
+  '1D': '1-day trend',
   '5D': '5-day trend',
   '1M': '1-month trend',
   '3M': '3-month trend',
   '1Y': '12-month trend',
+  '5Y': '5-year trend',
+  MAX: 'Full history',
 };
 
 function formatChangeBps(value?: number): string {

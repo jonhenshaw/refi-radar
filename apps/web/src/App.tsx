@@ -40,13 +40,24 @@ const demoLatest: LatestSnapshot = {
   health: demoHealth,
 };
 
+const dayMs = 24 * 60 * 60 * 1000;
+
+const demoShape: Record<RangeKey, { count: number; strideMs: number }> = {
+  '1D': { count: 2, strideMs: dayMs },
+  '5D': { count: 6, strideMs: dayMs },
+  '1M': { count: 31, strideMs: dayMs },
+  '3M': { count: 92, strideMs: dayMs },
+  '1Y': { count: 365, strideMs: dayMs },
+  '5Y': { count: 261, strideMs: 7 * dayMs },
+  MAX: { count: 521, strideMs: 7 * dayMs },
+};
+
 function makeDemoSeries(range: RangeKey): RateSeries[] {
-  const countByRange = { '5D': 6, '1M': 31, '3M': 46, '1Y': 53 } satisfies Record<RangeKey, number>;
-  const count = countByRange[range];
+  const { count, strideMs } = demoShape[range];
   const configs = [
-    { sourceId: 'mnd_30y_fixed' as const, label: 'MND 30Y Fixed', base: 6.72, color: '#1D9BF0', wave: 0.08 },
-    { sourceId: 'fred_mortgage30us' as const, label: 'FRED Mortgage30US', base: 6.88, color: '#2ED47A', wave: 0.06 },
-    { sourceId: 'fred_dgs10' as const, label: '10Y Treasury', base: 4.14, color: '#A78BFA', wave: 0.05 },
+    { sourceId: 'mnd_30y_fixed' as const, label: 'MND 30Y Fixed', base: 6.72, color: '#1D9BF0', wave: 0.08, drift: -0.0008 },
+    { sourceId: 'fred_mortgage30us' as const, label: 'FRED Mortgage30US', base: 6.88, color: '#2ED47A', wave: 0.06, drift: -0.0006 },
+    { sourceId: 'fred_dgs10' as const, label: '10Y Treasury', base: 4.14, color: '#A78BFA', wave: 0.05, drift: -0.0004 },
   ];
 
   return configs.map((config) => ({
@@ -54,9 +65,10 @@ function makeDemoSeries(range: RangeKey): RateSeries[] {
     label: config.label,
     color: config.color,
     points: Array.from({ length: count }, (_, index) => {
-      const drift = (index - count) * -0.008;
-      const rate = config.base + drift + Math.sin(index / 4) * config.wave;
-      const date = new Date(Date.now() - (count - index - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const fromEnd = count - index - 1;
+      const driftAmount = fromEnd * config.drift * (strideMs / dayMs);
+      const rate = config.base + driftAmount + Math.sin(index / 6) * config.wave + Math.sin(index / 23) * config.wave * 0.4;
+      const date = new Date(Date.now() - fromEnd * strideMs).toISOString().slice(0, 10);
       return { date, rate: Number(rate.toFixed(3)) };
     }),
   }));

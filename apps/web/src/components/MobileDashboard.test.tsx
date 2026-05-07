@@ -91,10 +91,13 @@ describe('MobileDashboard', () => {
 
   it('updates the trend label to match the active date range', () => {
     const labels: Record<RangeKey, RegExp> = {
+      '1D': /1-day trend/i,
       '5D': /5-day trend/i,
       '1M': /1-month trend/i,
       '3M': /3-month trend/i,
       '1Y': /12-month trend/i,
+      '5Y': /5-year trend/i,
+      MAX: /full history/i,
     };
 
     for (const [range, label] of Object.entries(labels) as Array<[RangeKey, RegExp]>) {
