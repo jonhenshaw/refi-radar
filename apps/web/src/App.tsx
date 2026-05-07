@@ -7,7 +7,7 @@ import { ChartInspectPanel } from './components/ChartInspectPanel';
 import { MetricCard } from './components/MetricCard';
 import { MobileDashboard } from './components/MobileDashboard';
 import { RangeTabs } from './components/RangeTabs';
-import { RateChart } from './components/RateChart';
+import { RateChart } from './components/chart/RateChart';
 import { RateDetailPanel } from './components/RateDetailPanel';
 import { RefiCalculator } from './components/RefiCalculator';
 import { SourceHealth } from './components/SourceHealth';
@@ -213,9 +213,19 @@ export default function App() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Rate history</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Multi-source trend</h2>
             </div>
-            <RangeTabs value={range} onChange={setRange} />
+            <div className="flex items-center gap-2">
+              <RangeTabs value={range} onChange={setRange} />
+              <button
+                type="button"
+                className="chart-expand-button"
+                aria-label="Expand chart"
+                onClick={() => setChartInspectOpen(true)}
+              >
+                Expand
+              </button>
+            </div>
           </div>
-          <RateChart series={series} loading={seriesLoading} demo={usingDemo} onInspect={() => setChartInspectOpen(true)} />
+          <RateChart series={series} loading={seriesLoading} demo={usingDemo} />
         </div>
 
         <div className="right-rail space-y-6">

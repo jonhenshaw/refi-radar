@@ -140,7 +140,7 @@ describe('MobileDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /show 1M history/i }));
     expect(onRangeChange).toHaveBeenCalledWith('1M');
 
-    fireEvent.click(screen.getByRole('button', { name: /open mortgage rate history chart/i }));
+    fireEvent.click(screen.getByRole('button', { name: /expand chart/i }));
     expect(onInspectChart).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole('button', { name: /view MND 30Y Fixed details/i }));

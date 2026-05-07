@@ -1,7 +1,7 @@
 import type { LatestSnapshot, SourceId } from '@refi-radar/shared';
 
 import type { RangeKey, RateSeries } from '../lib/api';
-import { RateChart } from './RateChart';
+import { RateChart } from './chart/RateChart';
 
 const sourceLabels: Record<string, string> = {
   mnd_30y_fixed: 'MND 30Y Fixed',
@@ -140,7 +140,15 @@ export function MobileDashboard({ latest, series, range, onRangeChange, onSelect
             ))}
           </div>
         </div>
-        <RateChart series={series} loading={loading} demo={usingDemo} onInspect={onInspectChart} />
+        <RateChart series={series} loading={loading} demo={usingDemo} height={220} />
+        <button
+          type="button"
+          className="mobile-chart-expand"
+          onClick={onInspectChart}
+          aria-label="Expand chart"
+        >
+          Expand chart
+        </button>
       </section>
 
       <p className="mobile-section-title">Rates</p>

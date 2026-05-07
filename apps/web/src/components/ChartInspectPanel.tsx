@@ -1,7 +1,7 @@
 import { X } from 'lucide-react';
 
 import type { RangeKey, RateSeries } from '../lib/api';
-import { RateChart } from './RateChart';
+import { RateChart } from './chart/RateChart';
 import { formatRate } from './MetricCard';
 
 const compactRangeLabels: Record<RangeKey, string> = {
@@ -49,7 +49,7 @@ export function ChartInspectPanel({ series, range, onClose }: { series: RateSeri
         </header>
 
         <div className="chart-inspect-chart rate-detail-chart">
-          <RateChart series={series} />
+          <RateChart series={series} expanded />
         </div>
 
         <div className="chart-inspect-compact-summary" aria-label="Chart summary">
