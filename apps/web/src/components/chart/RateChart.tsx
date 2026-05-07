@@ -5,6 +5,7 @@ import type { RateSeries } from '../../lib/api';
 import { ChartCanvas } from './ChartCanvas';
 import { ChartLegend } from './ChartLegend';
 import { Crosshair } from './Crosshair';
+import { StackedSparklines } from './StackedSparklines';
 import { Tooltip } from './Tooltip';
 import { ZoomResetChip } from './ZoomResetChip';
 import { useChartKeyboard } from './hooks/useChartKeyboard';
@@ -14,8 +15,20 @@ import { useResizeObserver } from './hooks/useResizeObserver';
 import { useZoomGesture, type ZoomDomain } from './hooks/useZoomGesture';
 import { buildScales, dateToMs } from './scales';
 
-const DEFAULT_PADDING = { top: 16, right: 18, bottom: 26, left: 52 };
-const EXPANDED_PADDING = { top: 18, right: 22, bottom: 30, left: 58 };
+type Padding = { top: number; right: number; bottom: number; left: number };
+
+interface Layout {
+  padding: Padding;
+  fontSize: number;
+  showGradient: boolean;
+}
+
+function layoutForWidth(width: number, expanded: boolean): Layout {
+  if (expanded) return { padding: { top: 18, right: 22, bottom: 30, left: 58 }, fontSize: 12, showGradient: true };
+  if (width >= 960) return { padding: { top: 16, right: 18, bottom: 26, left: 52 }, fontSize: 12, showGradient: true };
+  if (width >= 720) return { padding: { top: 14, right: 16, bottom: 24, left: 44 }, fontSize: 11, showGradient: true };
+  return { padding: { top: 12, right: 12, bottom: 22, left: 36 }, fontSize: 10, showGradient: false };
+}
 
 export interface RateChartProps {
   series: RateSeries[];
@@ -25,17 +38,19 @@ export interface RateChartProps {
   primarySourceId?: SourceId;
   height?: number;
   ariaLabel?: string;
+  /** When the chart is too narrow to render a useful multi-line view, switch to stacked sparklines. */
+  forceMode?: 'multi' | 'stack';
+  onSelectSource?: (sourceId: SourceId) => void;
 }
 
 interface ChartBodyProps {
   series: RateSeries[];
   height: number;
-  padding: typeof DEFAULT_PADDING;
+  layout: Layout;
   primarySourceId: SourceId;
   ariaLabel: string;
 }
 
-/** Compute the full unzoomed domain to feed the zoom gesture. */
 function fullDomainFor(series: RateSeries[]): [number, number] | null {
   let lo = Infinity;
   let hi = -Infinity;
@@ -51,29 +66,32 @@ function fullDomainFor(series: RateSeries[]): [number, number] | null {
   return [lo, hi];
 }
 
-function ChartBody({ series, height, padding, primarySourceId, ariaLabel }: ChartBodyProps) {
+function ChartBody({ series, height, layout, primarySourceId, ariaLabel }: ChartBodyProps) {
   const { ref: sizeRef, size } = useResizeObserver<HTMLDivElement>();
   const [zoomDomain, setZoomDomain] = useState<ZoomDomain>(undefined);
 
   const fullDomain = useMemo(() => fullDomainFor(series), [series]);
 
-  // Reset zoom whenever the underlying series identity changes (range switch, refresh).
   useEffect(() => setZoomDomain(undefined), [series]);
 
+  const padding = layout.padding;
   const viewport = { width: size.width, height, padding };
   const scales = useChartScales({ series, viewport, zoomDomain });
 
-  // For zoom gestures we need a "full" set of scales (unzoomed) to map gestures over.
   const fullScales = useMemo(() => {
     if (!size.width) return null;
     return buildScales({ series, viewport: { width: size.width, height, padding } });
   }, [series, size.width, height, padding]);
 
-  const { scrub, setScrub, setFrame: setScrubFrame, onPointerMove: onScrubMove, onPointerDown: onScrubDown, onPointerLeave, onPointerCancel: onScrubCancel } = usePointerScrub({
-    series,
-    scales,
-    primarySourceId,
-  });
+  const {
+    scrub,
+    setScrub,
+    setFrame: setScrubFrame,
+    onPointerMove: onScrubMove,
+    onPointerDown: onScrubDown,
+    onPointerLeave,
+    onPointerCancel: onScrubCancel,
+  } = usePointerScrub({ series, scales, primarySourceId });
 
   const {
     setFrame: setZoomFrame,
@@ -143,7 +161,6 @@ function ChartBody({ series, height, padding, primarySourceId, ariaLabel }: Char
   const handlePointerLeave = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       onPointerLeave();
-      // Treat leaving while mouse-dragging as a cancel of the zoom rect.
       if (e.pointerType === 'mouse') onZoomCancel(e);
     },
     [onPointerLeave, onZoomCancel],
@@ -153,7 +170,7 @@ function ChartBody({ series, height, padding, primarySourceId, ariaLabel }: Char
     <div
       ref={setRef}
       className="chart-frame"
-      style={{ position: 'relative', width: '100%', height, touchAction: 'none' }}
+      style={{ height }}
       tabIndex={0}
       aria-label={ariaLabel}
       onPointerDown={handlePointerDown}
@@ -173,6 +190,8 @@ function ChartBody({ series, height, padding, primarySourceId, ariaLabel }: Char
             height={height}
             primarySourceId={primarySourceId}
             ariaLabel={ariaLabel}
+            fontSize={layout.fontSize}
+            showGradient={layout.showGradient}
           >
             {scrub ? <Crosshair scrub={scrub} scales={scales} /> : null}
             {dragRect ? (
@@ -181,8 +200,8 @@ function ChartBody({ series, height, padding, primarySourceId, ariaLabel }: Char
                 y={scales.yRange[0]}
                 width={Math.abs(dragRect.toPx - dragRect.fromPx)}
                 height={scales.yRange[1] - scales.yRange[0]}
-                fill="rgba(29,155,240,0.18)"
-                stroke="rgba(29,155,240,0.55)"
+                fill="rgba(77,159,255,0.16)"
+                stroke="rgba(77,159,255,0.5)"
                 strokeWidth={1}
                 pointerEvents="none"
               />
@@ -196,6 +215,18 @@ function ChartBody({ series, height, padding, primarySourceId, ariaLabel }: Char
   );
 }
 
+interface ResolvedHeight {
+  bodyHeight: number;
+  cssMinHeight: string | undefined;
+}
+
+function resolveHeight(explicit: number | undefined, expanded: boolean, mode: 'multi' | 'stack'): ResolvedHeight {
+  if (explicit) return { bodyHeight: explicit, cssMinHeight: undefined };
+  if (expanded) return { bodyHeight: 440, cssMinHeight: 'clamp(360px, 60vh, 560px)' };
+  if (mode === 'stack') return { bodyHeight: 200, cssMinHeight: undefined };
+  return { bodyHeight: 320, cssMinHeight: 'clamp(260px, 38vh, 340px)' };
+}
+
 export function RateChart({
   series,
   loading = false,
@@ -204,32 +235,71 @@ export function RateChart({
   primarySourceId = 'mnd_30y_fixed',
   height,
   ariaLabel,
+  forceMode,
+  onSelectSource,
 }: RateChartProps) {
-  const padding = expanded ? EXPANDED_PADDING : DEFAULT_PADDING;
-  const frameHeight = height ?? (expanded ? 440 : 300);
+  const { ref: outerRef, size: outerSize } = useResizeObserver<HTMLDivElement>();
+  const containerWidth = outerSize.width;
+
+  const detectedMode: 'multi' | 'stack' = expanded
+    ? 'multi'
+    : containerWidth > 0 && containerWidth < 480
+      ? 'stack'
+      : 'multi';
+  const mode = forceMode ?? detectedMode;
+
+  const layout = useMemo(
+    () => layoutForWidth(containerWidth || 920, expanded),
+    [containerWidth, expanded],
+  );
+
+  const { bodyHeight, cssMinHeight } = resolveHeight(height, expanded, mode);
 
   if (loading) {
-    return <div className="chart-skeleton" style={{ height: frameHeight }} aria-hidden="true" />;
+    return (
+      <div
+        ref={outerRef}
+        className="chart-skeleton"
+        style={{ height: bodyHeight, minHeight: cssMinHeight }}
+        aria-hidden="true"
+      />
+    );
   }
 
   const hasPoints = series.some((s) => s.points.length > 0);
   if (!series.length || !hasPoints) {
     return (
-      <div className="chart-empty" style={{ height: frameHeight }}>
+      <div
+        ref={outerRef}
+        className="chart-empty"
+        style={{ height: bodyHeight, minHeight: cssMinHeight }}
+      >
         No rate history available.
       </div>
     );
   }
 
   return (
-    <div className={expanded ? 'rate-chart rate-chart-expanded' : 'rate-chart'}>
-      <ChartBody
-        series={series}
-        height={frameHeight}
-        padding={padding}
-        primarySourceId={primarySourceId}
-        ariaLabel={ariaLabel ?? 'Mortgage rate history chart'}
-      />
+    <div
+      ref={outerRef}
+      className="flex flex-col gap-3"
+      style={{ minHeight: cssMinHeight }}
+    >
+      {mode === 'stack' && !expanded ? (
+        <StackedSparklines
+          series={series}
+          height={bodyHeight}
+          onSelect={onSelectSource}
+        />
+      ) : (
+        <ChartBody
+          series={series}
+          height={bodyHeight}
+          layout={layout}
+          primarySourceId={primarySourceId}
+          ariaLabel={ariaLabel ?? 'Mortgage rate history chart'}
+        />
+      )}
       <ChartLegend series={series} demo={demo} />
     </div>
   );
