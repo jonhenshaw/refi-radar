@@ -11,10 +11,12 @@ interface Props {
 }
 
 export function StackedSparklines({ series, height, onSelect }: Props) {
-  const rowHeight = Math.max(56, Math.floor(height / Math.max(series.length, 1)));
+  const rowCount = Math.max(series.length, 1);
+  const rowHeight = Math.max(56, Math.floor(height / rowCount));
+  const sparkHeight = Math.max(20, rowHeight - 24);
 
   return (
-    <div className="grid divide-y divide-line border border-line rounded-md bg-surface-1/40">
+    <div className="grid divide-y divide-line border border-line rounded-md bg-surface-1/40 overflow-hidden">
       {series.map((s) => {
         const last = s.points.at(-1);
         const oneDay = deltaBpsAgo(s.points, 1);
@@ -34,10 +36,10 @@ export function StackedSparklines({ series, height, onSelect }: Props) {
           <RowEl
             key={s.sourceId}
             {...rowProps}
-            className={`grid grid-cols-[minmax(0,140px)_1fr] items-center gap-3 px-3 text-left ${
+            className={`grid grid-cols-[minmax(0,140px)_minmax(0,1fr)] gap-3 px-3 text-left ${
               onSelect ? 'hover:bg-surface-2/60 cursor-pointer' : ''
             }`}
-            style={{ height: rowHeight }}
+            style={{ height: rowHeight, alignItems: 'center' }}
           >
             <div className="flex flex-col gap-0.5 min-w-0">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -50,7 +52,7 @@ export function StackedSparklines({ series, height, onSelect }: Props) {
                 </span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="font-mono-tnum text-lg text-fg">
+                <span className="font-mono-tnum text-base text-fg">
                   {last ? `${last.rate.toFixed(2)}%` : '—'}
                 </span>
                 <span className={`font-mono-tnum text-[11px] tone-${tone}`}>
@@ -58,7 +60,7 @@ export function StackedSparklines({ series, height, onSelect }: Props) {
                 </span>
               </div>
             </div>
-            <div className="h-full min-w-0 py-2">
+            <div className="min-w-0 overflow-hidden" style={{ height: sparkHeight }}>
               <Sparkline
                 points={sparkPoints}
                 color={s.color}

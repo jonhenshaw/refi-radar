@@ -1,6 +1,5 @@
 import { monthlyPayment, monthlySavings } from '@refi-radar/shared';
 
-import { useResizeObserver } from './chart/hooks/useResizeObserver';
 import { pathFor } from './chart/scales';
 
 interface Props {
@@ -12,6 +11,10 @@ interface Props {
 }
 
 const POINTS = 60;
+const VB_W = 200;
+const VB_H = 60;
+const PAD_X = 4;
+const PAD_Y = 6;
 
 export function SavingsCurve({
   balance,
@@ -20,18 +23,14 @@ export function SavingsCurve({
   newRate,
   height = 80,
 }: Props) {
-  const { ref, size } = useResizeObserver<HTMLDivElement>();
-  const width = size.width;
-
   if (
-    width <= 0 ||
     !Number.isFinite(balance) ||
     balance <= 0 ||
     !Number.isFinite(currentRate) ||
     !Number.isFinite(termYears) ||
     termYears <= 0
   ) {
-    return <div ref={ref} style={{ height }} />;
+    return <div style={{ height }} />;
   }
 
   const months = termYears * 12;
@@ -48,34 +47,32 @@ export function SavingsCurve({
   });
 
   const maxSavings = Math.max(...samples.map((s) => s.savings), 1);
-  const padX = 4;
-  const padY = 6;
-  const innerW = width - padX * 2;
-  const innerH = height - padY * 2;
+  const innerW = VB_W - PAD_X * 2;
+  const innerH = VB_H - PAD_Y * 2;
 
   const coords = samples.map((s) => ({
-    x: padX + ((s.r - minRate) / span) * innerW,
-    y: padY + (1 - s.savings / maxSavings) * innerH,
+    x: PAD_X + ((s.r - minRate) / span) * innerW,
+    y: PAD_Y + (1 - s.savings / maxSavings) * innerH,
   }));
 
   const fillD =
     coords.length > 1
-      ? `${pathFor(coords)} L ${coords[coords.length - 1].x.toFixed(1)} ${(height - 0.5).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(height - 0.5).toFixed(1)} Z`
+      ? `${pathFor(coords)} L ${coords[coords.length - 1].x.toFixed(2)} ${VB_H} L ${coords[0].x.toFixed(2)} ${VB_H} Z`
       : '';
 
   const newRateClamped = Math.min(maxRate, Math.max(minRate, newRate));
-  const markerX = padX + ((newRateClamped - minRate) / span) * innerW;
+  const markerX = PAD_X + ((newRateClamped - minRate) / span) * innerW;
   const markerSavings = monthlySavings(currentPay, monthlyPayment(balance, newRateClamped, months));
-  const markerY = padY + (1 - markerSavings / maxSavings) * innerH;
+  const markerY = PAD_Y + (1 - markerSavings / maxSavings) * innerH;
 
   return (
-    <div ref={ref} style={{ height }} className="relative">
+    <div className="relative" style={{ height }}>
       <svg
-        viewBox={`0 0 ${width} ${height}`}
-        width={width}
-        height={height}
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
         preserveAspectRatio="none"
-        style={{ display: 'block' }}
+        className="block h-full w-full"
+        style={{ overflow: 'hidden' }}
+        aria-hidden="true"
       >
         <path d={fillD} fill="var(--color-good)" fillOpacity="0.08" />
         <path
@@ -85,19 +82,29 @@ export function SavingsCurve({
           strokeWidth={1.4}
           strokeLinecap="round"
           strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
         />
         <line
           x1={markerX}
           x2={markerX}
-          y1={padY}
-          y2={height - padY}
+          y1={PAD_Y}
+          y2={VB_H - PAD_Y}
           stroke="var(--color-fg-dim)"
           strokeWidth={1}
           strokeDasharray="2 3"
+          vectorEffect="non-scaling-stroke"
         />
-        <circle cx={markerX} cy={markerY} r={3} fill="var(--color-good)" stroke="black" strokeWidth={1} />
+        <circle
+          cx={markerX}
+          cy={markerY}
+          r={1.2}
+          fill="var(--color-good)"
+          stroke="black"
+          strokeWidth={0.5}
+          vectorEffect="non-scaling-stroke"
+        />
       </svg>
-      <div className="absolute inset-x-1 bottom-0 flex justify-between text-[10px] text-fg-faint font-mono-tnum">
+      <div className="absolute inset-x-1 bottom-0 flex justify-between text-[10px] text-fg-faint font-mono-tnum pointer-events-none">
         <span>{minRate.toFixed(2)}%</span>
         <span className="text-fg-dim">savings @ rate sweep</span>
         <span>{maxRate.toFixed(2)}%</span>
