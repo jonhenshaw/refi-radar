@@ -4,12 +4,7 @@ import { Plus, Trash2, X } from 'lucide-react';
 import { describeRule, type AlertRuleType, type LocalAlertRule, type SourceId } from '@refi-radar/shared';
 
 import type { NewRuleInput } from '../../hooks/useAlertRules';
-
-const SOURCE_OPTIONS: Array<{ id: SourceId; label: string }> = [
-  { id: 'mnd_30y_fixed', label: 'MND 30Y Fixed' },
-  { id: 'fred_mortgage30us', label: 'FRED Survey' },
-  { id: 'fred_dgs10', label: '10Y Treasury' },
-];
+import { SOURCE_LABELS, SOURCE_ORDER } from '../../lib/sourceTheme';
 
 const TYPE_OPTIONS: Array<{ id: AlertRuleType; label: string; suffix: string; defaultThreshold: number }> = [
   { id: 'below_rate', label: 'Rate drops to or below', suffix: '%', defaultThreshold: 6.25 },
@@ -26,6 +21,13 @@ interface Props {
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
 }
+
+const fieldClass =
+  'flex items-center rounded-sm border border-line bg-surface-2 px-2 py-1.5 focus-within:border-line-strong';
+const inputClass = 'w-full bg-transparent font-mono-tnum text-fg outline-none text-[13px]';
+const selectClass = 'w-full bg-transparent text-fg outline-none text-[13px]';
+const labelClass = 'flex flex-col gap-1';
+const labelTextClass = 'text-[10px] uppercase tracking-wider text-fg-dim';
 
 export function AlertRulesDialog({ open, onClose, rules, onAdd, onToggle, onDelete }: Props) {
   const ref = useRef<HTMLDialogElement | null>(null);
@@ -107,55 +109,74 @@ export function AlertRulesDialog({ open, onClose, rules, onAdd, onToggle, onDele
   return (
     <dialog
       ref={ref}
-      className="alerts-dialog"
       aria-label="Manage alerts"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
+      className="m-auto fixed inset-0 w-full max-w-[540px] bg-transparent p-3 sm:p-6"
     >
-      <div className="alerts-dialog-body" onClick={(e) => e.stopPropagation()}>
-        <header className="alerts-dialog-head">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="dialog-body-scroll relative flex flex-col gap-4 rounded-lg border border-line-strong bg-surface-1 p-4 sm:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.6)]"
+      >
+        <header className="flex items-start justify-between gap-3">
           <div>
-            <p className="alerts-dialog-eyebrow">Alerts</p>
-            <h2 className="alerts-dialog-title">Manage rules</h2>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-fg-dim">Alerts</p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight text-fg">Manage rules</h2>
           </div>
-          <button type="button" className="alerts-dialog-close" onClick={onClose} aria-label="Close alert rules">
-            <X aria-hidden="true" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close alert rules"
+            className="rounded-sm border border-line p-1.5 text-fg-muted hover:text-fg hover:border-line-strong"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </header>
 
         {rules.length === 0 ? (
-          <p className="alerts-empty">No rules yet. Add one below to get notified when rates move.</p>
+          <p className="text-[12px] text-fg-muted">No rules yet. Add one below.</p>
         ) : (
-          <ul className="alert-rules-list">
+          <ul className="grid gap-2">
             {rules.map((rule) => (
-              <li key={rule.id} className={`alert-rule ${rule.enabled ? '' : 'alert-rule-off'}`}>
-                <div className="alert-rule-text">
-                  <p className="alert-rule-title">{describeRule(rule)}</p>
-                  <p className="alert-rule-meta">
+              <li
+                key={rule.id}
+                className={`flex items-start justify-between gap-3 rounded-sm border border-line bg-surface-2 p-3 ${
+                  rule.enabled ? '' : 'opacity-60'
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] text-fg">{describeRule(rule)}</p>
+                  <p className="text-[10px] text-fg-dim mt-0.5 font-mono-tnum">
                     Cooldown {rule.cooldownMinutes} min
                     {rule.lastTriggeredAt
                       ? ` · last fired ${new Date(rule.lastTriggeredAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`
                       : ''}
                   </p>
                 </div>
-                <div className="alert-rule-actions">
-                  <label className="alert-rule-switch">
+                <div className="flex items-center gap-2 shrink-0">
+                  <label className="flex items-center gap-1 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={rule.enabled}
                       onChange={() => onToggle(rule.id)}
                       aria-label={rule.enabled ? 'Disable rule' : 'Enable rule'}
+                      className="sr-only peer"
                     />
-                    <span aria-hidden="true">{rule.enabled ? 'On' : 'Off'}</span>
+                    <span
+                      aria-hidden="true"
+                      className="rounded-xs border border-line px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-fg-muted peer-checked:border-good peer-checked:text-good"
+                    >
+                      {rule.enabled ? 'On' : 'Off'}
+                    </span>
                   </label>
                   <button
                     type="button"
-                    className="alert-rule-delete"
                     onClick={() => onDelete(rule.id)}
                     aria-label="Delete rule"
+                    className="rounded-sm border border-line p-1.5 text-fg-muted hover:text-bad hover:border-bad/40"
                   >
-                    <Trash2 aria-hidden="true" />
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 </div>
               </li>
@@ -164,25 +185,35 @@ export function AlertRulesDialog({ open, onClose, rules, onAdd, onToggle, onDele
         )}
 
         {drafting ? (
-          <form className="alert-rule-form" onSubmit={handleSubmit}>
-            <div className="alert-rule-form-grid">
-              <label className="field">
-                <span className="field-label">Source</span>
-                <span className="field-input">
-                  <select value={sourceId} onChange={(e) => setSourceId(e.target.value as SourceId)} aria-label="Source">
-                    {SOURCE_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
+          <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className={labelClass}>
+                <span className={labelTextClass}>Source</span>
+                <span className={fieldClass}>
+                  <select
+                    value={sourceId}
+                    onChange={(e) => setSourceId(e.target.value as SourceId)}
+                    aria-label="Source"
+                    className={selectClass}
+                  >
+                    {SOURCE_ORDER.map((id) => (
+                      <option key={id} value={id}>
+                        {SOURCE_LABELS[id]}
                       </option>
                     ))}
                   </select>
                 </span>
               </label>
 
-              <label className="field">
-                <span className="field-label">Trigger</span>
-                <span className="field-input">
-                  <select value={type} onChange={(e) => handleTypeChange(e.target.value as AlertRuleType)} aria-label="Trigger">
+              <label className={labelClass}>
+                <span className={labelTextClass}>Trigger</span>
+                <span className={fieldClass}>
+                  <select
+                    value={type}
+                    onChange={(e) => handleTypeChange(e.target.value as AlertRuleType)}
+                    aria-label="Trigger"
+                    className={selectClass}
+                  >
                     {TYPE_OPTIONS.map((opt) => (
                       <option key={opt.id} value={opt.id}>
                         {opt.label}
@@ -192,45 +223,62 @@ export function AlertRulesDialog({ open, onClose, rules, onAdd, onToggle, onDele
                 </span>
               </label>
 
-              <label className="field">
-                <span className="field-label">Threshold</span>
-                <span className="field-input">
+              <label className={labelClass}>
+                <span className={labelTextClass}>Threshold</span>
+                <span className={fieldClass}>
                   <input
                     inputMode="decimal"
                     value={threshold}
                     onChange={(e) => setThreshold(e.target.value)}
                     aria-label="Threshold value"
+                    className={inputClass}
                   />
-                  <span className="field-suffix">{typeMeta.suffix}</span>
+                  <span className="font-mono-tnum text-fg-dim text-xs ml-1">{typeMeta.suffix}</span>
                 </span>
               </label>
 
-              <label className="field">
-                <span className="field-label">Cooldown</span>
-                <span className="field-input">
+              <label className={labelClass}>
+                <span className={labelTextClass}>Cooldown</span>
+                <span className={fieldClass}>
                   <input
                     inputMode="numeric"
                     value={cooldown}
                     onChange={(e) => setCooldown(e.target.value)}
                     aria-label="Cooldown in minutes"
+                    className={inputClass}
                   />
-                  <span className="field-suffix">min</span>
+                  <span className="font-mono-tnum text-fg-dim text-xs ml-1">min</span>
                 </span>
               </label>
             </div>
-            {error ? <p className="field-error" role="alert">{error}</p> : null}
-            <div className="alert-rule-form-actions">
-              <button type="button" className="alert-rule-cancel" onClick={resetForm}>
+            {error ? (
+              <p role="alert" className="text-[12px] text-bad">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-sm border border-line px-3 py-1.5 text-[12px] text-fg-muted hover:text-fg hover:border-line-strong"
+              >
                 Cancel
               </button>
-              <button type="submit" className="alert-rule-save">
+              <button
+                type="submit"
+                className="rounded-sm border border-accent/40 bg-accent/10 px-3 py-1.5 text-[12px] text-accent hover:bg-accent/20"
+              >
                 Save rule
               </button>
             </div>
           </form>
         ) : (
-          <button type="button" className="alert-rule-add" onClick={() => setDrafting(true)}>
-            <Plus aria-hidden="true" /> Add rule
+          <button
+            type="button"
+            onClick={() => setDrafting(true)}
+            className="flex items-center justify-center gap-1.5 rounded-sm border border-dashed border-line py-2 text-[12px] text-fg-muted hover:text-fg hover:border-line-strong"
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add rule
           </button>
         )}
       </div>

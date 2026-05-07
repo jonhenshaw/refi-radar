@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
 import type { RateSeries } from '../../lib/api';
+import { AXIS_FG, AXIS_FG_STRONG, GRID_LINE, SOURCE_COLORS } from '../../lib/sourceTheme';
 import { dateToMs, pathFor, type ChartScales } from './scales';
 
 const FALLBACK_PRIMARY = 'mnd_30y_fixed' as const;
@@ -12,12 +13,27 @@ interface Props {
   height: number;
   primarySourceId?: string;
   ariaLabel?: string;
+  fontSize?: number;
+  showGradient?: boolean;
   style?: CSSProperties;
   children?: React.ReactNode;
 }
 
-export function ChartCanvas({ series, scales, width, height, primarySourceId, ariaLabel, style, children }: Props) {
+export function ChartCanvas({
+  series,
+  scales,
+  width,
+  height,
+  primarySourceId,
+  ariaLabel,
+  fontSize = 11,
+  showGradient = true,
+  style,
+  children,
+}: Props) {
   const primaryId = primarySourceId ?? FALLBACK_PRIMARY;
+  const gradientColor =
+    SOURCE_COLORS[primaryId as keyof typeof SOURCE_COLORS] ?? SOURCE_COLORS[FALLBACK_PRIMARY];
 
   return (
     <svg
@@ -31,8 +47,8 @@ export function ChartCanvas({ series, scales, width, height, primarySourceId, ar
     >
       <defs>
         <linearGradient id="rateChartFade" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#1D9BF0" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#1D9BF0" stopOpacity="0" />
+          <stop offset="0%" stopColor={gradientColor} stopOpacity="0.22" />
+          <stop offset="100%" stopColor={gradientColor} stopOpacity="0" />
         </linearGradient>
       </defs>
 
@@ -45,7 +61,7 @@ export function ChartCanvas({ series, scales, width, height, primarySourceId, ar
               x2={scales.xRange[1]}
               y1={y}
               y2={y}
-              stroke="rgba(255,255,255,0.07)"
+              stroke={GRID_LINE}
               strokeWidth={1}
               shapeRendering="crispEdges"
             />
@@ -53,9 +69,10 @@ export function ChartCanvas({ series, scales, width, height, primarySourceId, ar
               x={scales.xRange[0] - 8}
               y={y + 4}
               textAnchor="end"
-              fill="rgba(255,255,255,0.42)"
-              fontSize="11"
-              fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+              fill={AXIS_FG_STRONG}
+              fontSize={fontSize}
+              fontFamily="var(--font-mono)"
+              fontWeight={500}
             >
               {rate.toFixed(2)}%
             </text>
@@ -69,11 +86,11 @@ export function ChartCanvas({ series, scales, width, height, primarySourceId, ar
           <text
             key={`x-${i}`}
             x={x}
-            y={height - 8}
+            y={height - 6}
             textAnchor={i === 0 ? 'start' : i === scales.xTicks.length - 1 ? 'end' : 'middle'}
-            fill="rgba(255,255,255,0.4)"
-            fontSize="11"
-            fontFamily="ui-sans-serif, system-ui, sans-serif"
+            fill={AXIS_FG}
+            fontSize={fontSize}
+            fontFamily="var(--font-sans)"
             pointerEvents="none"
           >
             {tick.label}
@@ -91,9 +108,9 @@ export function ChartCanvas({ series, scales, width, height, primarySourceId, ar
         const last = coords.at(-1);
         return (
           <g key={item.sourceId}>
-            {isPrimary && coords.length > 1 ? (
+            {isPrimary && showGradient && coords.length > 1 ? (
               <path
-                d={`${pathFor(coords)} L ${last!.x.toFixed(1)} ${(scales.yRange[1]).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(scales.yRange[1]).toFixed(1)} Z`}
+                d={`${pathFor(coords)} L ${last!.x.toFixed(1)} ${scales.yRange[1].toFixed(1)} L ${coords[0].x.toFixed(1)} ${scales.yRange[1].toFixed(1)} Z`}
                 fill="url(#rateChartFade)"
               />
             ) : null}
@@ -101,19 +118,19 @@ export function ChartCanvas({ series, scales, width, height, primarySourceId, ar
               d={pathFor(coords)}
               fill="none"
               stroke={item.color}
-              strokeWidth={isPrimary ? 2.5 : 1.6}
+              strokeWidth={isPrimary ? 2 : 1.4}
               strokeLinecap="round"
               strokeLinejoin="round"
-              opacity={isPrimary ? 1 : 0.85}
+              opacity={isPrimary ? 1 : 0.78}
               vectorEffect="non-scaling-stroke"
             />
             {last ? (
               <circle
                 cx={last.x}
                 cy={last.y}
-                r={isPrimary ? 4 : 3}
+                r={isPrimary ? 3.5 : 2.5}
                 fill={item.color}
-                stroke="rgba(0,0,0,0.4)"
+                stroke="rgba(0,0,0,0.5)"
                 strokeWidth="1"
               />
             ) : null}

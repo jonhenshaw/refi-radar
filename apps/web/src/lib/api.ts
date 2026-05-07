@@ -1,5 +1,7 @@
 import type { LatestSnapshot, Range, RefiInput, RefiResult, SourceId } from '@refi-radar/shared';
 
+import { SOURCE_COLORS, SOURCE_LABELS_LONG, SOURCE_ORDER } from './sourceTheme';
+
 export type RangeKey = Range;
 
 export interface SeriesPoint {
@@ -25,14 +27,7 @@ interface ApiCompareResponse {
   series: Partial<Record<SourceId, Array<{ time: string; value: number }>>>;
 }
 
-const comparedSources: SourceId[] = ['mnd_30y_fixed', 'fred_mortgage30us', 'fred_dgs10'];
 const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
-
-const sourceMeta: Record<SourceId, { label: string; color: string }> = {
-  mnd_30y_fixed: { label: 'MND 30Y Fixed', color: '#1D9BF0' },
-  fred_mortgage30us: { label: 'FRED Mortgage30US', color: '#2ED47A' },
-  fred_dgs10: { label: '10Y Treasury', color: '#A78BFA' },
-};
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -53,27 +48,23 @@ export function getLatest(): Promise<LatestSnapshot> {
 
 export async function getSeries(sourceId: SourceId = 'mnd_30y_fixed', range: RangeKey = '1M'): Promise<RateSeries> {
   const response = await request<ApiSeriesResponse>(`/api/series?source=${encodeURIComponent(sourceId)}&range=${range}`);
-  const meta = sourceMeta[sourceId];
   return {
     sourceId,
-    label: meta.label,
-    color: meta.color,
+    label: SOURCE_LABELS_LONG[sourceId],
+    color: SOURCE_COLORS[sourceId],
     points: response.points.map((point) => ({ date: point.time.slice(0, 10), rate: point.value })),
   };
 }
 
 export async function getCompareSeries(range: RangeKey = '1M'): Promise<RateSeries[]> {
-  const sources = comparedSources.join(',');
+  const sources = SOURCE_ORDER.join(',');
   const response = await request<ApiCompareResponse>(`/api/series/compare?sources=${encodeURIComponent(sources)}&range=${range}`);
-  return comparedSources.map((sourceId) => {
-    const meta = sourceMeta[sourceId];
-    return {
-      sourceId,
-      label: meta.label,
-      color: meta.color,
-      points: (response.series[sourceId] ?? []).map((point) => ({ date: point.time.slice(0, 10), rate: point.value })),
-    };
-  });
+  return SOURCE_ORDER.map((sourceId) => ({
+    sourceId,
+    label: SOURCE_LABELS_LONG[sourceId],
+    color: SOURCE_COLORS[sourceId],
+    points: (response.series[sourceId] ?? []).map((point) => ({ date: point.time.slice(0, 10), rate: point.value })),
+  }));
 }
 
 export function calculateRefi(input: RefiInput): Promise<RefiResult> {

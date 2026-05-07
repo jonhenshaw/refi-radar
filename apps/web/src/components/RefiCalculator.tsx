@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { breakEvenMonths, monthlyPayment, monthlySavings, type RefiInput, type RefiResult } from '@refi-radar/shared';
 
+import { SavingsCurve } from './SavingsCurve';
+
 interface FieldValidation {
   min?: number;
   max?: number;
@@ -50,23 +52,29 @@ interface FieldProps {
   suffix?: string;
   error?: string | null;
   onChange: (value: string) => void;
+  inputMode?: 'decimal' | 'numeric';
 }
 
-function Field({ label, value, suffix, error, onChange }: FieldProps) {
+function Field({ label, value, suffix, error, onChange, inputMode = 'decimal' }: FieldProps) {
   return (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      <span className={`field-input${error ? ' field-input-error' : ''}`}>
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] uppercase tracking-wider text-fg-dim">{label}</span>
+      <span
+        className={`flex items-center rounded-sm border px-2 py-1.5 ${
+          error ? 'border-bad' : 'border-line focus-within:border-line-strong'
+        } bg-surface-2`}
+      >
         <input
           aria-label={label}
           aria-invalid={error ? true : undefined}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          inputMode="decimal"
+          inputMode={inputMode}
+          className="w-full bg-transparent font-mono-tnum text-fg outline-none"
         />
-        {suffix ? <span className="field-suffix">{suffix}</span> : null}
+        {suffix ? <span className="font-mono-tnum text-fg-dim text-xs ml-1">{suffix}</span> : null}
       </span>
-      {error ? <span className="field-error">{error}</span> : null}
+      {error ? <span className="text-[10px] text-bad">{error}</span> : null}
     </label>
   );
 }
@@ -79,9 +87,9 @@ interface SummaryStatProps {
 
 function SummaryStat({ label, value, emphasis = 'flat' }: SummaryStatProps) {
   return (
-    <div className={`summary-stat summary-stat-${emphasis}`}>
-      <p className="summary-stat-label">{label}</p>
-      <p className="summary-stat-value">{value}</p>
+    <div className="flex flex-col gap-0.5 px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wider text-fg-dim">{label}</p>
+      <p className={`font-mono-tnum text-base ${emphasis === 'good' ? 'tone-good' : 'text-fg'}`}>{value}</p>
     </div>
   );
 }
@@ -131,17 +139,26 @@ export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculato
   }, [onResult, result]);
 
   return (
-    <section className="panel calculator-card">
-      <header className="card-head">
+    <section className="flex flex-col gap-4 border border-line rounded-md bg-surface-1/40 p-4">
+      <header className="flex items-start justify-between gap-3">
         <div>
-          <p className="card-eyebrow">Refinance calculator</p>
-          <h2 className="card-title">Model your break-even</h2>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-fg-dim">Refinance calculator</p>
+          <h2 className="text-lg font-semibold tracking-tight text-fg">Model your break-even</h2>
         </div>
-        <span className="pill pill-neutral">Local calc</span>
+        <button
+          type="button"
+          onClick={() => {
+            userEditedNewRate.current = true;
+            setNewRate(suggestedRate.toFixed(2));
+          }}
+          className="rounded-sm border border-line px-2 py-1 text-[10px] uppercase tracking-wider text-fg-muted hover:text-fg hover:border-line-strong"
+        >
+          Use today
+        </button>
       </header>
 
-      <div className="calculator-grid">
-        <Field label="Loan balance" value={balance} error={balanceError} onChange={setBalance} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="Loan balance" value={balance} error={balanceError} onChange={setBalance} suffix="$" />
         <Field label="Current rate" value={currentRate} suffix="%" error={currentRateError} onChange={setCurrentRate} />
         <Field
           label="New rate"
@@ -153,34 +170,53 @@ export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculato
             setNewRate(value);
           }}
         />
-        <Field label="Term years" value={termYears} suffix="years" error={termError} onChange={setTermYears} />
-        <div className="calculator-grid-full">
-          <Field label="Closing costs" value={closingCosts} error={closingError} onChange={setClosingCosts} />
+        <Field label="Term" value={termYears} suffix="yrs" error={termError} onChange={setTermYears} inputMode="numeric" />
+        <div className="sm:col-span-2">
+          <Field label="Closing costs" value={closingCosts} error={closingError} onChange={setClosingCosts} suffix="$" />
         </div>
       </div>
 
-      <div data-testid="refi-summary" className="calculator-summary">
-        <SummaryStat
-          label="Current payment"
-          value={hasError ? '—' : currency.format(result.currentPayment)}
-        />
-        <SummaryStat label="New payment" value={hasError ? '—' : currency.format(result.newPayment)} />
-        <SummaryStat
-          label="Monthly savings"
-          value={hasError ? '—' : `${currency.format(result.monthlySavings)}/mo`}
-          emphasis={!hasError && result.monthlySavings > 0 ? 'good' : 'flat'}
-        />
-        <SummaryStat
-          label="Break-even"
-          value={
-            hasError
-              ? '—'
-              : result.breakEvenMonths === null || !Number.isFinite(result.breakEvenMonths)
-                ? 'Never'
-                : `${result.breakEvenMonths} months`
-          }
-          emphasis={!hasError && result.monthlySavings > 0 ? 'good' : 'flat'}
-        />
+      {!hasError ? (
+        <div className="border border-line rounded-sm bg-surface-2 p-2">
+          <SavingsCurve
+            balance={numericValue(balance)}
+            currentRate={numericValue(currentRate)}
+            termYears={numericValue(termYears)}
+            newRate={numericValue(newRate)}
+          />
+        </div>
+      ) : null}
+
+      <div
+        data-testid="refi-summary"
+        className="grid grid-cols-2 sm:grid-cols-4 border-t border-l border-line"
+      >
+        <div className="border-r border-b border-line">
+          <SummaryStat label="Current payment" value={hasError ? '—' : currency.format(result.currentPayment)} />
+        </div>
+        <div className="border-r border-b border-line">
+          <SummaryStat label="New payment" value={hasError ? '—' : currency.format(result.newPayment)} />
+        </div>
+        <div className="border-r border-b border-line">
+          <SummaryStat
+            label="Monthly savings"
+            value={hasError ? '—' : `${currency.format(result.monthlySavings)}/mo`}
+            emphasis={!hasError && result.monthlySavings > 0 ? 'good' : 'flat'}
+          />
+        </div>
+        <div className="border-r border-b border-line">
+          <SummaryStat
+            label="Break-even"
+            value={
+              hasError
+                ? '—'
+                : result.breakEvenMonths === null || !Number.isFinite(result.breakEvenMonths)
+                  ? 'Never'
+                  : `${result.breakEvenMonths} months`
+            }
+            emphasis={!hasError && result.monthlySavings > 0 ? 'good' : 'flat'}
+          />
+        </div>
       </div>
     </section>
   );

@@ -1,3 +1,4 @@
+import { CROSSHAIR_LINE } from '../../lib/sourceTheme';
 import type { ScrubInfo } from './hooks/usePointerScrub';
 import type { ChartScales } from './scales';
 
@@ -14,7 +15,7 @@ export function Crosshair({ scrub, scales }: Props) {
         x2={scrub.pxX}
         y1={scales.yRange[0]}
         y2={scales.yRange[1]}
-        stroke="rgba(255,255,255,0.32)"
+        stroke={CROSSHAIR_LINE}
         strokeWidth={1}
         strokeDasharray="3 3"
       />
@@ -23,17 +24,17 @@ export function Crosshair({ scrub, scales }: Props) {
           <circle
             cx={scrub.pxX}
             cy={row.pxY}
-            r={5.5}
+            r={4}
             fill={row.color}
-            stroke="rgba(0,0,0,0.6)"
+            stroke="rgba(0,0,0,0.7)"
             strokeWidth={1}
           />
           <circle
             cx={scrub.pxX}
             cy={row.pxY}
-            r={9}
+            r={8}
             fill={row.color}
-            opacity={0.18}
+            opacity={0.16}
           />
         </g>
       ))}

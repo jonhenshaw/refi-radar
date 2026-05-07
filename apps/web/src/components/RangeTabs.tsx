@@ -11,7 +11,11 @@ export const visibleRanges: Array<{ key: RangeKey; label: string }> = [
 
 export function RangeTabs({ value, onChange }: { value: RangeKey; onChange: (range: RangeKey) => void }) {
   return (
-    <div className="range-tabs" role="tablist" aria-label="Chart history range">
+    <div
+      role="tablist"
+      aria-label="Chart history range"
+      className="inline-flex rounded-sm border border-line bg-surface-1 p-0.5"
+    >
       {visibleRanges.map((range) => {
         const active = value === range.key;
         return (
@@ -23,7 +27,11 @@ export function RangeTabs({ value, onChange }: { value: RangeKey; onChange: (ran
             aria-pressed={active}
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(range.key)}
-            className={active ? 'range-tab active' : 'range-tab'}
+            className={`min-w-[36px] rounded-xs px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider font-mono-tnum ${
+              active
+                ? 'bg-white/10 text-fg ring-1 ring-line-strong'
+                : 'text-fg-dim hover:text-fg'
+            }`}
           >
             {range.label}
           </button>
