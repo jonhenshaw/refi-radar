@@ -38,6 +38,8 @@ export interface RateChartProps {
   primarySourceId?: SourceId;
   height?: number;
   ariaLabel?: string;
+  /** Optional target rate to render as a horizontal reference line. */
+  targetRate?: number;
   /** When the chart is too narrow to render a useful multi-line view, switch to stacked sparklines. */
   forceMode?: 'multi' | 'stack';
   onSelectSource?: (sourceId: SourceId) => void;
@@ -49,6 +51,7 @@ interface ChartBodyProps {
   layout: Layout;
   primarySourceId: SourceId;
   ariaLabel: string;
+  targetRate?: number;
 }
 
 function fullDomainFor(series: RateSeries[]): [number, number] | null {
@@ -66,7 +69,7 @@ function fullDomainFor(series: RateSeries[]): [number, number] | null {
   return [lo, hi];
 }
 
-function ChartBody({ series, height, layout, primarySourceId, ariaLabel }: ChartBodyProps) {
+function ChartBody({ series, height, layout, primarySourceId, ariaLabel, targetRate }: ChartBodyProps) {
   const { ref: sizeRef, size } = useResizeObserver<HTMLDivElement>();
   const [zoomDomain, setZoomDomain] = useState<ZoomDomain>(undefined);
 
@@ -192,6 +195,7 @@ function ChartBody({ series, height, layout, primarySourceId, ariaLabel }: Chart
             ariaLabel={ariaLabel}
             fontSize={layout.fontSize}
             showGradient={layout.showGradient}
+            targetRate={targetRate}
           >
             {scrub ? <Crosshair scrub={scrub} scales={scales} /> : null}
             {dragRect ? (
@@ -235,6 +239,7 @@ export function RateChart({
   primarySourceId = 'mnd_30y_fixed',
   height,
   ariaLabel,
+  targetRate,
   forceMode,
   onSelectSource,
 }: RateChartProps) {
@@ -298,6 +303,7 @@ export function RateChart({
           layout={layout}
           primarySourceId={primarySourceId}
           ariaLabel={ariaLabel ?? 'Mortgage rate history chart'}
+          targetRate={targetRate}
         />
       )}
       <ChartLegend series={series} demo={demo} />

@@ -121,3 +121,76 @@ export function fmtPct(value: number | undefined, decimals = 2): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—';
   return `${value.toFixed(decimals)}%`;
 }
+
+function pointsWithinDays(points: SeriesPoint[], days: number): SeriesPoint[] {
+  if (!points.length) return [];
+  const lastMs = dateToMs(points[points.length - 1].date);
+  const cutoffMs = lastMs - days * 86_400_000;
+  return points.filter((p) => dateToMs(p.date) >= cutoffMs);
+}
+
+/**
+ * Population standard deviation of day-over-day rate changes within the last `windowDays`,
+ * expressed in basis points. Returns undefined when there are fewer than two consecutive
+ * observations in the window.
+ */
+export function volatilityBps(points: SeriesPoint[], windowDays: number): number | undefined {
+  const window = pointsWithinDays(points, windowDays);
+  if (window.length < 2) return undefined;
+  const diffs: number[] = [];
+  for (let i = 1; i < window.length; i++) {
+    diffs.push((window[i].rate - window[i - 1].rate) * 100);
+  }
+  const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+  const variance = diffs.reduce((acc, d) => acc + (d - mean) ** 2, 0) / diffs.length;
+  return Math.round(Math.sqrt(variance));
+}
+
+/**
+ * Number of days since the most recent observation at or below `targetRate`.
+ * Returns 0 if the latest point already meets the target, undefined if no observation does.
+ */
+export function daysSinceAtOrBelow(points: SeriesPoint[], targetRate: number): number | undefined {
+  if (!points.length) return undefined;
+  const lastMs = dateToMs(points[points.length - 1].date);
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].rate <= targetRate) {
+      return Math.round((lastMs - dateToMs(points[i].date)) / 86_400_000);
+    }
+  }
+  return undefined;
+}
+
+export type TrendDirection = 'up' | 'flat' | 'down';
+
+/**
+ * Linear-regression slope of rates over the last `windowDays`, expressed in bps/day,
+ * paired with a categorical direction. `flat` covers slopes within ±0.05 bps/day.
+ */
+export function trendSlope(
+  points: SeriesPoint[],
+  windowDays: number,
+): { bpsPerDay: number; direction: TrendDirection } | undefined {
+  const window = pointsWithinDays(points, windowDays);
+  if (window.length < 2) return undefined;
+  const baseMs = dateToMs(window[0].date);
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  for (const p of window) {
+    const x = (dateToMs(p.date) - baseMs) / 86_400_000;
+    const y = p.rate * 100;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumXX += x * x;
+  }
+  const n = window.length;
+  const denom = n * sumXX - sumX * sumX;
+  if (denom === 0) return { bpsPerDay: 0, direction: 'flat' };
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const rounded = Math.round(slope * 100) / 100;
+  const direction: TrendDirection = Math.abs(rounded) < 0.05 ? 'flat' : rounded > 0 ? 'up' : 'down';
+  return { bpsPerDay: rounded, direction };
+}

@@ -221,6 +221,7 @@ function AppContent() {
           series={series}
           loading={seriesLoading}
           demo={usingDemo}
+          targetRate={targetRate}
           onSelectSource={setSelectedSourceId}
         />
       </section>
@@ -253,7 +254,11 @@ function AppContent() {
           />
         </div>
         <div className="lg:col-span-7 order-1 lg:order-2">
-          <RefiCalculator suggestedRate={primaryRate} onResult={setRefiResult} />
+          <RefiCalculator
+            suggestedRate={primaryRate}
+            onResult={setRefiResult}
+            onNewRateChange={setTargetRate}
+          />
         </div>
       </div>
 
@@ -317,6 +322,7 @@ function AppContent() {
           loading={seriesLoading}
           demo={usingDemo}
           expanded
+          targetRate={targetRate}
           primarySourceId={selectedSourceId ?? 'mnd_30y_fixed'}
           ariaLabel="Mortgage rate history chart"
         />
