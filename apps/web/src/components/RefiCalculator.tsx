@@ -25,29 +25,41 @@ function numericValue(value: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function Field({ label, value, suffix, onChange }: { label: string; value: string; suffix?: string; onChange: (value: string) => void }) {
+interface FieldProps {
+  label: string;
+  value: string;
+  suffix?: string;
+  onChange: (value: string) => void;
+}
+
+function Field({ label, value, suffix, onChange }: FieldProps) {
   return (
-    <label className="block">
-      <span className="text-xs font-medium uppercase tracking-[0.16em] text-white/40">{label}</span>
-      <div className="mt-2 flex items-center rounded-2xl border border-white/10 bg-black/25 px-3 focus-within:border-[#1D9BF0]/70 focus-within:ring-2 focus-within:ring-[#1D9BF0]/10">
+    <label className="field">
+      <span className="field-label">{label}</span>
+      <span className="field-input">
         <input
           aria-label={label}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           inputMode="decimal"
-          className="min-w-0 flex-1 bg-transparent py-3 font-mono text-sm text-white outline-none placeholder:text-white/25"
         />
-        {suffix ? <span className="text-xs text-white/35">{suffix}</span> : null}
-      </div>
+        {suffix ? <span className="field-suffix">{suffix}</span> : null}
+      </span>
     </label>
   );
 }
 
-function SummaryStat({ label, value, good = false }: { label: string; value: string; good?: boolean }) {
+interface SummaryStatProps {
+  label: string;
+  value: string;
+  emphasis?: 'good' | 'flat';
+}
+
+function SummaryStat({ label, value, emphasis = 'flat' }: SummaryStatProps) {
   return (
-    <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-white/35">{label}</p>
-      <p className={good ? 'mt-2 font-mono text-2xl font-semibold text-emerald-300' : 'mt-2 font-mono text-2xl font-semibold text-white'}>{value}</p>
+    <div className={`summary-stat summary-stat-${emphasis}`}>
+      <p className="summary-stat-label">{label}</p>
+      <p className="summary-stat-value">{value}</p>
     </div>
   );
 }
@@ -79,33 +91,46 @@ export function RefiCalculator({ suggestedRate = 6.35 }: { suggestedRate?: numbe
   );
 
   return (
-    <section className="panel p-5">
-      <div className="flex items-start justify-between gap-4">
+    <section className="panel calculator-card">
+      <header className="card-head">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1D9BF0]">Refinance calculator</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-white">Model your break-even</h2>
+          <p className="card-eyebrow">Refinance calculator</p>
+          <h2 className="card-title">Model your break-even</h2>
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-white/45">Local calc</span>
-      </div>
+        <span className="pill pill-neutral">Local calc</span>
+      </header>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="calculator-grid">
         <Field label="Loan balance" value={balance} onChange={setBalance} />
         <Field label="Current rate" value={currentRate} suffix="%" onChange={setCurrentRate} />
-        <Field label="New rate" value={newRate} suffix="%" onChange={(value) => {
-          userEditedNewRate.current = true;
-          setNewRate(value);
-        }} />
+        <Field
+          label="New rate"
+          value={newRate}
+          suffix="%"
+          onChange={(value) => {
+            userEditedNewRate.current = true;
+            setNewRate(value);
+          }}
+        />
         <Field label="Term years" value={termYears} suffix="years" onChange={setTermYears} />
-        <div className="sm:col-span-2">
+        <div className="calculator-grid-full">
           <Field label="Closing costs" value={closingCosts} onChange={setClosingCosts} />
         </div>
       </div>
 
-      <div data-testid="refi-summary" className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div data-testid="refi-summary" className="calculator-summary">
         <SummaryStat label="Current payment" value={currency.format(result.currentPayment)} />
         <SummaryStat label="New payment" value={currency.format(result.newPayment)} />
-        <SummaryStat label="Monthly savings" value={`${currency.format(result.monthlySavings)}/mo`} good={result.monthlySavings > 0} />
-        <SummaryStat label="Break-even" value={!Number.isFinite(result.breakEvenMonths) ? 'Never' : `${result.breakEvenMonths} months`} good={result.monthlySavings > 0} />
+        <SummaryStat
+          label="Monthly savings"
+          value={`${currency.format(result.monthlySavings)}/mo`}
+          emphasis={result.monthlySavings > 0 ? 'good' : 'flat'}
+        />
+        <SummaryStat
+          label="Break-even"
+          value={result.breakEvenMonths === null || !Number.isFinite(result.breakEvenMonths) ? 'Never' : `${result.breakEvenMonths} months`}
+          emphasis={result.monthlySavings > 0 ? 'good' : 'flat'}
+        />
       </div>
     </section>
   );

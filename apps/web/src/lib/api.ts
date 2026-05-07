@@ -1,6 +1,6 @@
 import type { LatestSnapshot, Range, RefiInput, RefiResult, SourceId } from '@refi-radar/shared';
 
-export type RangeKey = Extract<Range, '5D' | '1M' | '3M' | '1Y'>;
+export type RangeKey = Range;
 
 export interface SeriesPoint {
   date: string;
