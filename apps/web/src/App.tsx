@@ -3,12 +3,11 @@ import { Activity, AlertTriangle, Bell, LineChart, RadioTower } from 'lucide-rea
 
 import type { LatestSnapshot, RateObservation, SourceHealth as SourceHealthType, SourceId } from '@refi-radar/shared';
 
-import { ChartInspectPanel } from './components/ChartInspectPanel';
+import { ChartDialog } from './components/chart/ChartDialog';
 import { MetricCard } from './components/MetricCard';
 import { MobileDashboard } from './components/MobileDashboard';
 import { RangeTabs } from './components/RangeTabs';
 import { RateChart } from './components/chart/RateChart';
-import { RateDetailPanel } from './components/RateDetailPanel';
 import { RefiCalculator } from './components/RefiCalculator';
 import { SourceHealth } from './components/SourceHealth';
 import { getCompareSeries, getLatest, type RangeKey, type RateSeries } from './lib/api';
@@ -140,8 +139,6 @@ export default function App() {
   }, [range]);
 
   const sources = latest?.sources ?? [];
-  const selectedSource = selectedSourceId ? sources.find((source) => source.sourceId === selectedSourceId) : undefined;
-  const selectedSeries = selectedSourceId ? series.find((item) => item.sourceId === selectedSourceId) : undefined;
   const primaryRate = latest?.primary?.rate ?? sources[0]?.rate;
   const avgChange = useMemo(() => {
     const changes = sources.map((source) => source.changeBps).filter((value): value is number => typeof value === 'number');
@@ -276,17 +273,24 @@ export default function App() {
       </section>
       </div>
 
-      {chartInspectOpen ? <ChartInspectPanel series={series} range={range} onClose={() => setChartInspectOpen(false)} /> : null}
-
-      {selectedSourceId ? (
-        <RateDetailPanel
-          label={sourceLabels[selectedSourceId] ?? selectedSourceId}
-          sourceId={selectedSourceId}
-          series={selectedSeries}
-          latest={selectedSource}
-          onClose={() => setSelectedSourceId(null)}
+      <ChartDialog
+        open={chartInspectOpen || selectedSourceId !== null}
+        onClose={() => {
+          setChartInspectOpen(false);
+          setSelectedSourceId(null);
+        }}
+        title={selectedSourceId ? sourceLabels[selectedSourceId] ?? selectedSourceId : 'Multi-source trend'}
+        subtitle={`${range} · ${selectedSourceId ? 'focused source' : 'all feeds'}`}
+      >
+        <RateChart
+          series={series}
+          loading={seriesLoading}
+          demo={usingDemo}
+          expanded
+          primarySourceId={selectedSourceId ?? 'mnd_30y_fixed'}
+          ariaLabel="Mortgage rate history chart"
         />
-      ) : null}
+      </ChartDialog>
     </main>
   );
 }
