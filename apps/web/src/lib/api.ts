@@ -11,7 +11,7 @@ import type {
   RefiResult,
 } from '@refi-radar/shared';
 
-import { SOURCE_COLORS, SOURCE_LABELS_LONG, SOURCE_ORDER } from './sourceTheme';
+import { SOURCE_COLORS, SOURCE_LABELS_LONG, TICKER_ORDER } from './sourceTheme';
 
 export type RangeKey = Range;
 
@@ -76,9 +76,12 @@ export async function getSeries(sourceId: RateSourceId = 'mnd_30y_fixed', range:
 }
 
 export async function getCompareSeries(range: RangeKey = '1M'): Promise<RateSeries[]> {
-  const sources = SOURCE_ORDER.join(',');
+  // Fetch all rate sources here so the multi-source chart, the per-source ladder,
+  // and the cross-source composite index can all read from the same payload.
+  // Consumers that only want the chart's primary three should filter via SOURCE_ORDER.
+  const sources = TICKER_ORDER.join(',');
   const response = await request<ApiCompareResponse>(`/api/series/compare?sources=${encodeURIComponent(sources)}&range=${range}`);
-  return SOURCE_ORDER.map((sourceId) => ({
+  return TICKER_ORDER.map((sourceId) => ({
     sourceId,
     label: SOURCE_LABELS_LONG[sourceId],
     color: SOURCE_COLORS[sourceId],

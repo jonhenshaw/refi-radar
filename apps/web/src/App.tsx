@@ -10,6 +10,7 @@ import type {
 
 import { AlertRulesDialog } from './components/alerts/AlertRulesDialog';
 import { ChartDialog } from './components/chart/ChartDialog';
+import { CompositeIndex } from './components/CompositeIndex';
 import { Hero } from './components/Hero';
 import { KeyLevels } from './components/KeyLevels';
 import { KeyStatsGrid } from './components/KeyStatsGrid';
@@ -34,7 +35,7 @@ import {
   type RateSeries,
 } from './lib/api';
 import { demoLatest, makeDemoSeries } from './lib/demoData';
-import { SOURCE_LABELS } from './lib/sourceTheme';
+import { SOURCE_LABELS, SOURCE_ORDER } from './lib/sourceTheme';
 import type { LatestSnapshot } from '@refi-radar/shared';
 
 const DEFAULT_TARGET_RATE = 6.25;
@@ -127,6 +128,10 @@ function AppContent() {
   );
   const treasurySeries = useMemo(
     () => series.find((s) => s.sourceId === 'fred_dgs10'),
+    [series],
+  );
+  const chartSeries = useMemo(
+    () => series.filter((s) => SOURCE_ORDER.includes(s.sourceId)),
     [series],
   );
 
@@ -224,13 +229,15 @@ function AppContent() {
           </div>
         </header>
         <RateChart
-          series={series}
+          series={chartSeries}
           loading={seriesLoading}
           demo={usingDemo}
           targetRate={targetRate}
           onSelectSource={setSelectedSourceId}
         />
       </section>
+
+      <CompositeIndex series={series} loading={seriesLoading} />
 
       <NewsPanel
         news={latest?.news ?? []}
@@ -330,7 +337,7 @@ function AppContent() {
         subtitle={`${range} · ${selectedSourceId ? 'focused source' : 'all feeds'}`}
       >
         <RateChart
-          series={series}
+          series={chartSeries}
           loading={seriesLoading}
           demo={usingDemo}
           expanded
