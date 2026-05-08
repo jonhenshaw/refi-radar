@@ -1,6 +1,6 @@
 import type { RateObservation } from '@refi-radar/shared';
 
-import type { RangeKey, RateSeries } from '../lib/api';
+import type { RateSeries } from '../lib/api';
 import {
   bpsTone,
   daysSinceAtOrBelow,
@@ -18,7 +18,6 @@ interface Props {
   primary: RateObservation | undefined;
   sources: RateObservation[];
   series: RateSeries[];
-  range: RangeKey;
   targetRate: number;
 }
 
