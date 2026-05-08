@@ -39,6 +39,7 @@ import { SOURCE_LABELS, SOURCE_ORDER } from './lib/sourceTheme';
 import type { LatestSnapshot } from '@refi-radar/shared';
 
 const DEFAULT_TARGET_RATE = 6.25;
+const METRICS_SERIES_RANGE: RangeKey = 'MAX';
 
 function freshnessText(snapshot?: LatestSnapshot): string {
   const fetchedAt = snapshot?.primary?.fetchedAt ?? snapshot?.sources[0]?.fetchedAt;
@@ -62,6 +63,7 @@ function AppContent() {
   const [range, setRange] = useState<RangeKey>('1M');
   const [series, setSeries] = useState<RateSeries[]>([]);
   const [seriesLoading, setSeriesLoading] = useState(true);
+  const [metricsSeries, setMetricsSeries] = useState<RateSeries[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<RateSourceId | null>(null);
   const [chartInspectOpen, setChartInspectOpen] = useState(false);
   const [alertsDialogOpen, setAlertsDialogOpen] = useState(false);
@@ -119,16 +121,35 @@ function AppContent() {
     };
   }, [range]);
 
+  useEffect(() => {
+    let cancelled = false;
+    // Key metrics and range-sensitive alerts should not be recalculated from the
+    // currently selected chart window. Load a stable history once so values like
+    // "Trend 30d" remain constant while users inspect different chart ranges.
+    getCompareSeries(METRICS_SERIES_RANGE)
+      .then((items) => {
+        if (cancelled) return;
+        const hasPoints = items.some((item) => item.points.length > 0);
+        setMetricsSeries(hasPoints ? items : makeDemoSeries(METRICS_SERIES_RANGE));
+      })
+      .catch(() => {
+        if (!cancelled) setMetricsSeries(makeDemoSeries(METRICS_SERIES_RANGE));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const sources = latest?.sources ?? [];
   const primary = latest?.primary ?? sources[0];
   const primaryRate = primary?.rate;
-  const primarySeries = useMemo(
-    () => series.find((s) => s.sourceId === (primary?.sourceId ?? 'mnd_30y_fixed')),
-    [primary?.sourceId, series],
+  const primaryMetricsSeries = useMemo(
+    () => metricsSeries.find((s) => s.sourceId === (primary?.sourceId ?? 'mnd_30y_fixed')),
+    [primary?.sourceId, metricsSeries],
   );
-  const treasurySeries = useMemo(
-    () => series.find((s) => s.sourceId === 'fred_dgs10'),
-    [series],
+  const treasuryMetricsSeries = useMemo(
+    () => metricsSeries.find((s) => s.sourceId === 'fred_dgs10'),
+    [metricsSeries],
   );
   const chartSeries = useMemo(
     () => series.filter((s) => SOURCE_ORDER.includes(s.sourceId)),
@@ -151,7 +172,7 @@ function AppContent() {
   useAlertEvaluator({
     rules,
     snapshot: latest,
-    series,
+    series: metricsSeries,
     refiBreakEvenMonths:
       refiResult?.breakEvenMonths !== null && refiResult?.breakEvenMonths !== undefined && Number.isFinite(refiResult.breakEvenMonths)
         ? refiResult.breakEvenMonths
@@ -193,8 +214,8 @@ function AppContent() {
 
       <Hero
         primary={primary}
-        primarySeries={primarySeries}
-        treasurySeries={treasurySeries}
+        primarySeries={primaryMetricsSeries}
+        treasurySeries={treasuryMetricsSeries}
         freshnessText={fresh}
         loading={latestLoading}
       />
@@ -202,8 +223,7 @@ function AppContent() {
       <KeyStatsGrid
         primary={primary}
         sources={sources}
-        series={series}
-        range={range}
+        series={metricsSeries}
         targetRate={targetRate}
       />
 
