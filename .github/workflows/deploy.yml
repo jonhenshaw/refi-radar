@@ -13,6 +13,7 @@ jobs:
   deploy:
     name: Deploy worker + apply D1 schema
     runs-on: ubuntu-latest
+    environment: CloudFlare
     permissions:
       contents: read
       deployments: write
