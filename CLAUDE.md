@@ -10,7 +10,7 @@ Refi Radar is a near-real-time mortgage-rate dashboard that helps the user decid
 
 pnpm monorepo (`pnpm-workspace.yaml` → `apps/*`, `packages/*`):
 
-- `apps/web` — React 19 + Vite + Tailwind v4 frontend, deployed to Cloudflare via `apps/web/wrangler.toml` (assets-only, SPA routing).
+- `apps/web` — React 19 + Vite + Tailwind v4 frontend, deployed to **Cloudflare Pages** via the GitHub integration (auto-build on push to `main`). No wrangler config in this package.
 - `apps/worker` — Hono-based Cloudflare Worker exposing the JSON API and the `*/15 * * * *` scheduled collector. Bindings: `DB` (D1 `refi-radar-prod`), `REFI_RADAR_CACHE` (KV).
 - `packages/shared` — TypeScript types (`SourceId`, `RateObservation`, `LatestSnapshot`, `AlertRule`, `Range`), finance math, and alert-evaluation logic. `main` points at `src/index.ts` directly — no build step; consumers import the TS source via `workspace:^`.
 - `scripts/backfill_last_12_months.py` — emits D1 SQL for historical seeding from MND embed + FRED CSV.
@@ -26,7 +26,7 @@ Run from repo root unless noted. All scripts use pnpm workspace filters.
 - `pnpm build` — recursive build across packages.
 - `pnpm test` — recursive `vitest run`. To run a single package: `pnpm --filter @refi-radar/web test` (or `@refi-radar/worker`, `@refi-radar/shared`). Single file: `pnpm --filter @refi-radar/worker exec vitest run src/routes/series.test.ts`. Watch a single test by name: add `-t "pattern"`.
 - `pnpm typecheck` / `pnpm lint` — both run `tsc --noEmit` per package; there is no separate ESLint config.
-- Worker deploy: `pnpm --filter @refi-radar/worker deploy` (uses `apps/worker/wrangler.toml`).
+- Worker deploy: `pnpm --filter @refi-radar/worker deploy` (uses `apps/worker/wrangler.toml`). The CI workflow at `.github/workflows/deploy.yml` does this automatically on push to `main`. The web frontend is deployed by Cloudflare Pages via its GitHub integration — no manual deploy step.
 
 ## Architecture
 

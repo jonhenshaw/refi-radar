@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy worker + web to Cloudflare
+    name: Deploy worker + apply D1 schema
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -31,7 +31,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm --filter @refi-radar/web build
 
       - name: Apply D1 schema (idempotent)
         uses: cloudflare/wrangler-action@v3
@@ -49,10 +48,5 @@ jobs:
           workingDirectory: apps/worker
           command: deploy
 
-      - name: Deploy web (Workers with Assets)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/web
-          command: deploy
+# Web frontend is deployed by Cloudflare Pages via the GitHub integration
+# (auto-builds on every push to main). No wrangler step needed here.
