@@ -3,11 +3,14 @@ import type { RateObservation } from '@refi-radar/shared';
 import type { RangeKey, RateSeries } from '../lib/api';
 import {
   bpsTone,
+  daysSinceAtOrBelow,
   deltaBpsAgo,
   extremes,
   fmtBps,
   fmtPct,
   lastSpreadBps,
+  trendSlope,
+  volatilityBps,
   windowExtremes,
 } from '../lib/derive';
 
@@ -58,6 +61,17 @@ export function KeyStatsGrid({ primary, series, targetRate }: Props) {
   const allTime = extremes(mndPoints);
   const fromLowBps =
     allTime && typeof rate === 'number' ? Math.round((rate - allTime.lo) * 100) : undefined;
+  const vol30 = volatilityBps(mndPoints, 30);
+  const daysToTarget = typeof rate === 'number' ? daysSinceAtOrBelow(mndPoints, targetRate) : undefined;
+  const trend30 = trendSlope(mndPoints, 30);
+  const trendValue = (() => {
+    if (!trend30) return '—';
+    if (trend30.direction === 'flat') return 'Flat';
+    const sign = trend30.bpsPerDay > 0 ? '+' : '−';
+    return `${sign}${Math.abs(trend30.bpsPerDay).toFixed(2)}/day`;
+  })();
+  const trendTone: Cell['tone'] =
+    trend30?.direction === 'down' ? 'good' : trend30?.direction === 'up' ? 'bad' : trend30 ? 'flat' : 'unknown';
 
   const cells: Cell[] = [
     {
@@ -122,12 +136,38 @@ export function KeyStatsGrid({ primary, series, targetRate }: Props) {
       tone: 'flat',
       hideOnPhone: true,
     },
+    {
+      label: '30d vol',
+      value: typeof vol30 === 'number' ? `${vol30} bps` : '—',
+      sub: 'σ daily Δ',
+      tone: 'flat',
+      hideOnPhone: true,
+    },
+    {
+      label: 'Days at target',
+      value:
+        typeof daysToTarget === 'number'
+          ? daysToTarget === 0
+            ? 'Now'
+            : `${daysToTarget}d ago`
+          : 'Never',
+      sub: `≤ ${targetRate.toFixed(2)}%`,
+      tone: typeof daysToTarget === 'number' && daysToTarget === 0 ? 'good' : 'flat',
+      hideOnPhone: true,
+    },
+    {
+      label: 'Trend 30d',
+      value: trendValue,
+      sub: trend30 ? `${trend30.direction}` : 'MND',
+      tone: trendTone,
+      hideOnPhone: true,
+    },
   ];
 
   return (
     <section
       aria-label="Key statistics"
-      className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 border-t border-l border-line bg-surface-1/40"
+      className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 border-t border-l border-line bg-surface-1/40"
     >
       {cells.map((cell, i) => (
         <article

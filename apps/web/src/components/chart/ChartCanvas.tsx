@@ -15,6 +15,7 @@ interface Props {
   ariaLabel?: string;
   fontSize?: number;
   showGradient?: boolean;
+  targetRate?: number;
   style?: CSSProperties;
   children?: React.ReactNode;
 }
@@ -28,6 +29,7 @@ export function ChartCanvas({
   ariaLabel,
   fontSize = 11,
   showGradient = true,
+  targetRate,
   style,
   children,
 }: Props) {
@@ -79,6 +81,41 @@ export function ChartCanvas({
           </g>
         );
       })}
+
+      {typeof targetRate === 'number' &&
+      targetRate >= scales.yDomain[0] &&
+      targetRate <= scales.yDomain[1] ? (
+        (() => {
+          const y = scales.yToPx(targetRate);
+          return (
+            <g pointerEvents="none" data-testid="target-line">
+              <line
+                x1={scales.xRange[0]}
+                x2={scales.xRange[1]}
+                y1={y}
+                y2={y}
+                stroke="#1D9BF0"
+                strokeOpacity={0.6}
+                strokeWidth={1}
+                strokeDasharray="4 4"
+                shapeRendering="crispEdges"
+              />
+              <text
+                x={scales.xRange[1] - 4}
+                y={y - 4}
+                textAnchor="end"
+                fill="#1D9BF0"
+                fillOpacity={0.85}
+                fontSize={fontSize}
+                fontFamily="var(--font-mono)"
+                fontWeight={500}
+              >
+                target {targetRate.toFixed(2)}%
+              </text>
+            </g>
+          );
+        })()
+      ) : null}
 
       {scales.xTicks.map((tick, i) => {
         const x = scales.xToPx(tick.timeMs);

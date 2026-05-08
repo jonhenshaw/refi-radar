@@ -97,9 +97,10 @@ function SummaryStat({ label, value, emphasis = 'flat' }: SummaryStatProps) {
 interface RefiCalculatorProps {
   suggestedRate?: number;
   onResult?: (result: RefiResult) => void;
+  onNewRateChange?: (rate: number) => void;
 }
 
-export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculatorProps) {
+export function RefiCalculator({ suggestedRate = 6.35, onResult, onNewRateChange }: RefiCalculatorProps) {
   const [balance, setBalance] = useState('425000');
   const [currentRate, setCurrentRate] = useState('7.15');
   const [newRate, setNewRate] = useState(String(suggestedRate.toFixed(2)));
@@ -112,6 +113,14 @@ export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculato
       setNewRate(suggestedRate.toFixed(2));
     }
   }, [suggestedRate]);
+
+  const pushNewRate = (raw: string) => {
+    if (!onNewRateChange) return;
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0 && parsed < 30) {
+      onNewRateChange(parsed);
+    }
+  };
 
   const balanceError = validate(balance, { min: 1, message: 'Must be positive' });
   const currentRateError = validate(currentRate, { min: 0, max: 30, message: 'Enter a rate between 0 and 30' });
@@ -149,7 +158,9 @@ export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculato
           type="button"
           onClick={() => {
             userEditedNewRate.current = true;
-            setNewRate(suggestedRate.toFixed(2));
+            const next = suggestedRate.toFixed(2);
+            setNewRate(next);
+            pushNewRate(next);
           }}
           className="rounded-sm border border-line px-2 py-1 text-[10px] uppercase tracking-wider text-fg-muted hover:text-fg hover:border-line-strong"
         >
@@ -168,6 +179,7 @@ export function RefiCalculator({ suggestedRate = 6.35, onResult }: RefiCalculato
           onChange={(value) => {
             userEditedNewRate.current = true;
             setNewRate(value);
+            pushNewRate(value);
           }}
         />
         <Field label="Term" value={termYears} suffix="yrs" error={termError} onChange={setTermYears} inputMode="numeric" />
