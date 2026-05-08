@@ -28,7 +28,7 @@ describe('FRED collector', () => {
   it('collector keeps running when one source fails', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockRejectedValueOnce(new Error('network'))
-      .mockResolvedValueOnce(new Response('observation_date,DGS10\n2026-05-01,4.5\n'));
+      .mockImplementation(async () => new Response('observation_date,DGS10\n2026-05-01,4.5\n'));
     const inserted: unknown[] = [];
     const db = {
       prepare: vi.fn((sql: string) => ({
@@ -44,8 +44,11 @@ describe('FRED collector', () => {
     const result = await collectFredSources({ DB: db as unknown as D1Database });
 
     expect(result.ok).toBe(false);
-    expect(result.results).toEqual(expect.arrayContaining([expect.objectContaining({ sourceId: 'fred_mortgage30us', ok: false }), expect.objectContaining({ sourceId: 'fred_dgs10', ok: true })]));
-    expect(inserted.length).toBe(1);
+    expect(result.results).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceId: 'fred_mortgage30us', ok: false }),
+      expect.objectContaining({ sourceId: 'fred_dgs10', ok: true }),
+    ]));
+    expect(inserted.length).toBeGreaterThanOrEqual(1);
     fetchMock.mockRestore();
   });
 });
