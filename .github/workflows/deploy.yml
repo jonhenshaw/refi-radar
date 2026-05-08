@@ -33,13 +33,11 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
-      - name: Apply D1 schema (idempotent)
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/worker
-          command: d1 execute refi-radar-prod --remote --file=src/db/schema.sql
+      # Schema migrations are run manually with the user's OAuth session
+      # (`wrangler d1 execute refi-radar-prod --remote --file=apps/worker/src/db/schema.sql`).
+      # The CI API token does not currently have D1:Edit, so doing it here
+      # would block every deploy on a 10000 auth error. Schema is additive
+      # and applied in advance of the worker code that depends on it.
 
       - name: Deploy worker
         uses: cloudflare/wrangler-action@v3
