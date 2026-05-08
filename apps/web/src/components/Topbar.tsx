@@ -6,8 +6,24 @@ interface Props {
   totalCount: number;
   usingDemo: boolean;
   freshnessText: string;
+  lastFetchedAt?: string;
   targetRate: number;
   onTargetRateChange: (rate: number) => void;
+}
+
+const FRESH_WITHIN_MS = 120_000;
+
+function useFreshness(lastFetchedAt: string | undefined, usingDemo: boolean): boolean {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!lastFetchedAt) return;
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, [lastFetchedAt]);
+  if (usingDemo || !lastFetchedAt) return false;
+  const ms = Date.now() - Date.parse(lastFetchedAt);
+  void tick;
+  return Number.isFinite(ms) && ms >= 0 && ms < FRESH_WITHIN_MS;
 }
 
 function useClock(): string {
@@ -24,10 +40,12 @@ export function Topbar({
   totalCount,
   usingDemo,
   freshnessText,
+  lastFetchedAt,
   targetRate,
   onTargetRateChange,
 }: Props) {
   const clock = useClock();
+  const fresh = useFreshness(lastFetchedAt, usingDemo);
   const statusText = usingDemo
     ? 'demo data'
     : totalCount === 0
@@ -38,7 +56,7 @@ export function Topbar({
   const tone = usingDemo ? 'warn' : liveCount === totalCount && totalCount > 0 ? 'good' : 'flat';
 
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line py-3">
+    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line py-2">
       <div className="flex items-center gap-2">
         <RadioTower className="h-4 w-4 text-fg" aria-hidden="true" />
         <span className="font-semibold tracking-tight text-fg">Refi Radar</span>
@@ -78,7 +96,10 @@ export function Topbar({
           <span className="uppercase tracking-wider">UTC</span>
           <span className="font-mono-tnum text-fg-muted">{clock}</span>
         </span>
-        <span className="hidden md:inline-flex text-[11px] text-fg-dim">{freshnessText}</span>
+        <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] text-fg-dim">
+          {fresh ? <span className="pulse-dot" aria-hidden="true" /> : null}
+          <span>{freshnessText}</span>
+        </span>
       </div>
     </header>
   );

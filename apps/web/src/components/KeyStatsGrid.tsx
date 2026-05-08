@@ -73,6 +73,12 @@ export function KeyStatsGrid({ primary, series, targetRate }: Props) {
   const trendTone: Cell['tone'] =
     trend30?.direction === 'down' ? 'good' : trend30?.direction === 'up' ? 'bad' : trend30 ? 'flat' : 'unknown';
 
+  const t10y2y = series.find((s) => s.sourceId === 'fred_t10y2y');
+  const t10y2yLast = t10y2y?.points.length ? t10y2y.points[t10y2y.points.length - 1].rate : undefined;
+  const t10y2yBps = typeof t10y2yLast === 'number' ? Math.round(t10y2yLast * 100) : undefined;
+  const dff = series.find((s) => s.sourceId === 'fred_dff');
+  const dffLast = dff?.points.length ? dff.points[dff.points.length - 1].rate : undefined;
+
   const cells: Cell[] = [
     {
       label: 'Target gap',
@@ -160,6 +166,24 @@ export function KeyStatsGrid({ primary, series, targetRate }: Props) {
       value: trendValue,
       sub: trend30 ? `${trend30.direction}` : 'MND',
       tone: trendTone,
+      hideOnPhone: true,
+    },
+    {
+      label: '10Y-2Y',
+      value:
+        typeof t10y2yBps === 'number'
+          ? `${t10y2yBps > 0 ? '+' : t10y2yBps < 0 ? '−' : ''}${Math.abs(t10y2yBps)} bps`
+          : '—',
+      sub: typeof t10y2yBps === 'number' && t10y2yBps < 0 ? 'inverted' : 'spread',
+      tone:
+        typeof t10y2yBps === 'number' ? (t10y2yBps < 0 ? 'bad' : t10y2yBps > 0 ? 'good' : 'flat') : 'unknown',
+      hideOnPhone: true,
+    },
+    {
+      label: 'Fed funds',
+      value: fmtPct(dffLast),
+      sub: 'DFF',
+      tone: 'flat',
       hideOnPhone: true,
     },
   ];
