@@ -1,7 +1,7 @@
 import type { RateObservation } from '@refi-radar/shared';
 
 import type { RateSeries } from '../lib/api';
-import { bpsTone, downsample, fmtBps } from '../lib/derive';
+import { bpsTone, deltaBpsAgo, downsample, fmtBps } from '../lib/derive';
 import { SOURCE_COLORS, SOURCE_LABELS } from '../lib/sourceTheme';
 import { Sparkline } from './chart/Sparkline';
 
@@ -15,7 +15,8 @@ interface Props {
 
 export function Hero({ primary, primarySeries, treasurySeries, freshnessText, loading }: Props) {
   const rate = primary?.rate;
-  const change = primary?.changeBps;
+  const seriesChange = primarySeries ? deltaBpsAgo(primarySeries.points, 1) : undefined;
+  const change = typeof primary?.changeBps === 'number' ? primary.changeBps : seriesChange;
   const tone = bpsTone(change);
   const sourceLabel = primary ? SOURCE_LABELS[primary.sourceId] : SOURCE_LABELS.mnd_30y_fixed;
   const sparkPoints = primarySeries ? downsample(primarySeries.points, 80) : [];

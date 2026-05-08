@@ -1,6 +1,7 @@
 import type { RangeKey } from '../lib/api';
 
 export const visibleRanges: Array<{ key: RangeKey; label: string }> = [
+  { key: '1D', label: '1D' },
   { key: '5D', label: '5D' },
   { key: '1M', label: '1M' },
   { key: '3M', label: '3M' },

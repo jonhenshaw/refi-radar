@@ -120,8 +120,8 @@ function AppContent() {
   const primary = latest?.primary ?? sources[0];
   const primaryRate = primary?.rate;
   const primarySeries = useMemo(
-    () => series.find((s) => s.sourceId === 'mnd_30y_fixed'),
-    [series],
+    () => series.find((s) => s.sourceId === (primary?.sourceId ?? 'mnd_30y_fixed')),
+    [primary?.sourceId, series],
   );
   const treasurySeries = useMemo(
     () => series.find((s) => s.sourceId === 'fred_dgs10'),
