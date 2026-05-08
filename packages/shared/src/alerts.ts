@@ -1,4 +1,4 @@
-import type { LatestSnapshot, RateObservation, SourceId } from './types';
+import type { LatestSnapshot, RateObservation, RateSourceId } from './types';
 
 export type AlertRuleType =
   | 'below_rate'
@@ -8,7 +8,7 @@ export type AlertRuleType =
 
 export interface LocalAlertRule {
   id: string;
-  sourceId: SourceId;
+  sourceId: RateSourceId;
   type: AlertRuleType;
   threshold: number;
   enabled: boolean;
@@ -23,7 +23,7 @@ export interface AlertEvent {
   ruleId: string;
   firedAt: string;
   message: string;
-  sourceId: SourceId;
+  sourceId: RateSourceId;
   observedRate?: number;
   ruleSnapshot: {
     type: AlertRuleType;
@@ -39,7 +39,7 @@ export interface SeriesPoint {
 
 export interface EvaluationContext {
   snapshot: LatestSnapshot;
-  seriesBySource?: Partial<Record<SourceId, SeriesPoint[]>>;
+  seriesBySource?: Partial<Record<RateSourceId, SeriesPoint[]>>;
   refiBreakEvenMonths?: number;
   now: string;
 }
@@ -49,13 +49,19 @@ export interface EvaluationResult {
   updatedRules: LocalAlertRule[];
 }
 
-const SOURCE_LABELS: Record<SourceId, string> = {
+const SOURCE_LABELS: Record<RateSourceId, string> = {
   mnd_30y_fixed: 'MND 30Y Fixed',
   fred_mortgage30us: 'FRED Survey',
   fred_dgs10: '10Y Treasury',
+  fred_dgs2: '2Y Treasury',
+  fred_dgs30: '30Y Treasury',
+  fred_t10y2y: '10Y-2Y Spread',
+  fred_dff: 'Fed Funds (DFF)',
+  fred_sofr: 'SOFR',
+  fred_mortgage15us: 'FRED 15Y Survey',
 };
 
-function pickObservation(snapshot: LatestSnapshot, sourceId: SourceId): RateObservation | undefined {
+function pickObservation(snapshot: LatestSnapshot, sourceId: RateSourceId): RateObservation | undefined {
   return snapshot.sources.find((s) => s.sourceId === sourceId);
 }
 

@@ -4,8 +4,8 @@ import { AlertTriangle } from 'lucide-react';
 import type {
   AlertEvent,
   LocalAlertRule,
+  RateSourceId,
   RefiResult,
-  SourceId,
 } from '@refi-radar/shared';
 
 import { AlertRulesDialog } from './components/alerts/AlertRulesDialog';
@@ -59,7 +59,7 @@ function AppContent() {
   const [range, setRange] = useState<RangeKey>('1M');
   const [series, setSeries] = useState<RateSeries[]>([]);
   const [seriesLoading, setSeriesLoading] = useState(true);
-  const [selectedSourceId, setSelectedSourceId] = useState<SourceId | null>(null);
+  const [selectedSourceId, setSelectedSourceId] = useState<RateSourceId | null>(null);
   const [chartInspectOpen, setChartInspectOpen] = useState(false);
   const [alertsDialogOpen, setAlertsDialogOpen] = useState(false);
   const [refiResult, setRefiResult] = useState<RefiResult | null>(null);

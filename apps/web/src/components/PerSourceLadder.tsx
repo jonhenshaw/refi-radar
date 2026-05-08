@@ -1,4 +1,4 @@
-import type { RateObservation, SourceHealth, SourceId } from '@refi-radar/shared';
+import type { RateObservation, SourceHealth, RateSourceId } from '@refi-radar/shared';
 
 import type { RateSeries } from '../lib/api';
 import {
@@ -18,7 +18,7 @@ interface Props {
   series: RateSeries[];
   loading: boolean;
   usingDemo: boolean;
-  onSelectSource: (id: SourceId) => void;
+  onSelectSource: (id: RateSourceId) => void;
 }
 
 function statusOf(health: SourceHealth | undefined, demo: boolean): 'demo' | 'live' | 'stale' | 'down' {

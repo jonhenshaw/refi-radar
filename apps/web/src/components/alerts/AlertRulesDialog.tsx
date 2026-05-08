@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 
-import { describeRule, type AlertRuleType, type LocalAlertRule, type SourceId } from '@refi-radar/shared';
+import { describeRule, type AlertRuleType, type LocalAlertRule, type RateSourceId } from '@refi-radar/shared';
 
 import type { NewRuleInput } from '../../hooks/useAlertRules';
 import { SOURCE_LABELS, SOURCE_ORDER } from '../../lib/sourceTheme';
@@ -32,7 +32,7 @@ const labelTextClass = 'text-[10px] uppercase tracking-wider text-fg-dim';
 export function AlertRulesDialog({ open, onClose, rules, onAdd, onToggle, onDelete }: Props) {
   const ref = useRef<HTMLDialogElement | null>(null);
   const [drafting, setDrafting] = useState(false);
-  const [sourceId, setSourceId] = useState<SourceId>('mnd_30y_fixed');
+  const [sourceId, setSourceId] = useState<RateSourceId>('mnd_30y_fixed');
   const [type, setType] = useState<AlertRuleType>('below_rate');
   const [threshold, setThreshold] = useState<string>('6.25');
   const [cooldown, setCooldown] = useState<string>('360');
@@ -192,7 +192,7 @@ export function AlertRulesDialog({ open, onClose, rules, onAdd, onToggle, onDele
                 <span className={fieldClass}>
                   <select
                     value={sourceId}
-                    onChange={(e) => setSourceId(e.target.value as SourceId)}
+                    onChange={(e) => setSourceId(e.target.value as RateSourceId)}
                     aria-label="Source"
                     className={selectClass}
                   >

@@ -1,17 +1,23 @@
-import type { LatestSnapshot, RateObservation, SourceHealth, SourceId } from '@refi-radar/shared';
+import type { LatestSnapshot, RateObservation, RateSourceId, SourceHealth } from '@refi-radar/shared';
 import { getLatestObservations } from '../db/queries';
 import type { Env } from '../env';
 
-const PRIMARY_SOURCE_PRIORITY: SourceId[] = ['mnd_30y_fixed', 'fred_mortgage30us', 'fred_dgs10'];
+const PRIMARY_SOURCE_PRIORITY: RateSourceId[] = ['mnd_30y_fixed', 'fred_mortgage30us', 'fred_dgs10'];
 
 export function choosePrimaryObservation(sources: RateObservation[]): RateObservation | undefined {
   return PRIMARY_SOURCE_PRIORITY.map((sourceId) => sources.find((source) => source.sourceId === sourceId)).find(Boolean) ?? sources[0];
 }
 
-const STALE_AFTER_HOURS: Record<SourceId, number> = {
+const STALE_AFTER_HOURS: Record<RateSourceId, number> = {
   mnd_30y_fixed: 48,
   fred_mortgage30us: 24 * 10,
   fred_dgs10: 24 * 5,
+  fred_dgs2: 24 * 5,
+  fred_dgs30: 24 * 5,
+  fred_t10y2y: 24 * 5,
+  fred_dff: 24 * 5,
+  fred_sofr: 24 * 5,
+  fred_mortgage15us: 24 * 10,
 };
 
 async function optionalCacheOperation<T>(operation: () => Promise<T>, timeoutMs = 250): Promise<T | undefined> {
@@ -50,7 +56,7 @@ export async function buildLatestSnapshot(db: D1Database): Promise<LatestSnapsho
 
 export function buildSourceHealth(sources: RateObservation[], now = new Date()): SourceHealth[] {
   const bySource = new Map(sources.map((source) => [source.sourceId, source]));
-  return (Object.keys(STALE_AFTER_HOURS) as SourceId[]).map((sourceId) => {
+  return (Object.keys(STALE_AFTER_HOURS) as RateSourceId[]).map((sourceId) => {
     const source = bySource.get(sourceId);
     if (!source) {
       return { sourceId, ok: false, stale: true, lastError: 'No observations collected yet' };

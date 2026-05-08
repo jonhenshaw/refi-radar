@@ -61,6 +61,12 @@
   --color-source-mnd: #4D9FFF;
   --color-source-fred: #2DD673;
   --color-source-dgs10: #B295F5;
+  --color-source-dgs2: #6EE7F0;
+  --color-source-dgs30: #F5A742;
+  --color-source-t10y2y: #FF7A45;
+  --color-source-dff: #E879F9;
+  --color-source-sofr: #2DD4BF;
+  --color-source-mortgage15us: #84F0A8;
 }
 
 @layer base {

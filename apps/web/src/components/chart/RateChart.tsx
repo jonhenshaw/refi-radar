@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { SourceId } from '@refi-radar/shared';
+import type { RateSourceId } from '@refi-radar/shared';
 
 import type { RateSeries } from '../../lib/api';
 import { ChartCanvas } from './ChartCanvas';
@@ -35,21 +35,21 @@ export interface RateChartProps {
   loading?: boolean;
   demo?: boolean;
   expanded?: boolean;
-  primarySourceId?: SourceId;
+  primarySourceId?: RateSourceId;
   height?: number;
   ariaLabel?: string;
   /** Optional target rate to render as a horizontal reference line. */
   targetRate?: number;
   /** When the chart is too narrow to render a useful multi-line view, switch to stacked sparklines. */
   forceMode?: 'multi' | 'stack';
-  onSelectSource?: (sourceId: SourceId) => void;
+  onSelectSource?: (sourceId: RateSourceId) => void;
 }
 
 interface ChartBodyProps {
   series: RateSeries[];
   height: number;
   layout: Layout;
-  primarySourceId: SourceId;
+  primarySourceId: RateSourceId;
   ariaLabel: string;
   targetRate?: number;
 }
