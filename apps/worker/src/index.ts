@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { collectAllSources } from './services/collect';
 import type { Env } from './env';
+import { calendarRoutes } from './routes/calendar';
+import { headlinesRoutes } from './routes/headlines';
 import { refiRoutes } from './routes/refi';
 import { seriesRoutes } from './routes/series';
 import { getLatestSnapshot } from './services/latest';
@@ -20,6 +22,8 @@ app.get('/api/latest', async (c) => c.json(await getLatestSnapshot(c.env)));
 
 app.route('/api', seriesRoutes);
 app.route('/api', refiRoutes);
+app.route('/api', headlinesRoutes);
+app.route('/api', calendarRoutes);
 
 app.post('/api/collector/run', async (c) => {
   const result = await collectAllSources(c.env);

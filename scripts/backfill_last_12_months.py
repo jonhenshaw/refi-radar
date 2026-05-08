@@ -30,7 +30,13 @@ FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
 SOURCES = [
     ("mnd_30y_fixed", "Mortgage News Daily 30Y Fixed", "market_estimate", MND_CHART_URL, 15),
     ("fred_mortgage30us", "Freddie Mac PMMS 30Y", "weekly_survey", FRED_URL.format(series_id="MORTGAGE30US"), 1440),
+    ("fred_mortgage15us", "Freddie Mac PMMS 15Y", "weekly_survey", FRED_URL.format(series_id="MORTGAGE15US"), 1440),
     ("fred_dgs10", "FRED 10Y Treasury", "daily_proxy", FRED_URL.format(series_id="DGS10"), 1440),
+    ("fred_dgs2", "FRED 2Y Treasury", "daily_proxy", FRED_URL.format(series_id="DGS2"), 1440),
+    ("fred_dgs30", "FRED 30Y Treasury", "daily_proxy", FRED_URL.format(series_id="DGS30"), 1440),
+    ("fred_t10y2y", "FRED 10Y-2Y Spread", "daily_proxy", FRED_URL.format(series_id="T10Y2Y"), 1440),
+    ("fred_dff", "FRED Effective Fed Funds", "daily_proxy", FRED_URL.format(series_id="DFF"), 1440),
+    ("fred_sofr", "FRED SOFR", "daily_proxy", FRED_URL.format(series_id="SOFR"), 1440),
 ]
 
 @dataclass(frozen=True)

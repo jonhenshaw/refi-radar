@@ -5,7 +5,17 @@ import type { Env } from '../env';
 export const SUPPORTED_RANGES = ['1D', '5D', '1M', '3M', '1Y', '5Y', 'MAX'] as const;
 export type SeriesRange = (typeof SUPPORTED_RANGES)[number];
 
-const SUPPORTED_SOURCES = ['mnd_30y_fixed', 'fred_mortgage30us', 'fred_dgs10'];
+const SUPPORTED_SOURCES = [
+  'mnd_30y_fixed',
+  'fred_mortgage30us',
+  'fred_mortgage15us',
+  'fred_dgs10',
+  'fred_dgs2',
+  'fred_dgs30',
+  'fred_t10y2y',
+  'fred_dff',
+  'fred_sofr',
+];
 
 export function isValidRange(range: string | null | undefined): range is SeriesRange {
   return SUPPORTED_RANGES.includes(range as SeriesRange);
