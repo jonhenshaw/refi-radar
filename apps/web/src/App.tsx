@@ -3,9 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 
 import type {
   AlertEvent,
-  CalendarEvent,
   LocalAlertRule,
-  NewsItem,
   RateSourceId,
   RefiResult,
 } from '@refi-radar/shared';
@@ -31,9 +29,7 @@ import { useAlertEvaluator } from './hooks/useAlertEvaluator';
 import { useAlertEvents } from './hooks/useAlertEvents';
 import { useAlertRules } from './hooks/useAlertRules';
 import {
-  getCalendar,
   getCompareSeries,
-  getHeadlines,
   getLatest,
   type RangeKey,
   type RateSeries,
@@ -71,9 +67,6 @@ function AppContent() {
   const [alertsDialogOpen, setAlertsDialogOpen] = useState(false);
   const [refiResult, setRefiResult] = useState<RefiResult | null>(null);
   const [targetRate, setTargetRate] = useState<number>(DEFAULT_TARGET_RATE);
-  const [news, setNews] = useState<NewsItem[]>([]);
-  const [calendar, setCalendar] = useState<CalendarEvent[]>([]);
-  const [newsroomLoading, setNewsroomLoading] = useState(true);
 
   const { rules, addRule, toggleRule, deleteRule, replaceRules } = useAlertRules();
   const { events, appendEvents } = useAlertEvents();
@@ -84,21 +77,15 @@ function AppContent() {
       const snapshot = await getLatest();
       if (!snapshot.primary && snapshot.sources.length === 0) {
         setLatest(demoLatest);
-        setNews(demoLatest.news ?? []);
-        setCalendar(demoLatest.calendar ?? []);
         setUsingDemo(true);
         setLatestError('API returned no observations; displaying sample data.');
       } else {
         setLatest(snapshot);
-        setNews((current) => (snapshot.news?.length ? snapshot.news : current));
-        setCalendar((current) => (snapshot.calendar?.length ? snapshot.calendar : current));
         setUsingDemo(false);
         setLatestError(null);
       }
     } catch {
       setLatest(demoLatest);
-      setNews(demoLatest.news ?? []);
-      setCalendar(demoLatest.calendar ?? []);
       setUsingDemo(true);
       setLatestError('Live API unavailable in this environment; displaying sample data.');
     } finally {
@@ -111,29 +98,6 @@ function AppContent() {
     const timer = window.setInterval(() => void loadLatest(), 60_000);
     return () => window.clearInterval(timer);
   }, [loadLatest]);
-
-  const loadNewsroom = useCallback(async () => {
-    setNewsroomLoading(true);
-    try {
-      const [headlines, events] = await Promise.all([
-        getHeadlines({ limit: 8 }),
-        getCalendar({ limit: 5 }),
-      ]);
-      setNews(headlines);
-      setCalendar(events);
-    } catch {
-      setNews((current) => (current.length > 0 ? current : demoLatest.news ?? []));
-      setCalendar((current) => (current.length > 0 ? current : demoLatest.calendar ?? []));
-    } finally {
-      setNewsroomLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadNewsroom();
-    const timer = window.setInterval(() => void loadNewsroom(), 5 * 60_000);
-    return () => window.clearInterval(timer);
-  }, [loadNewsroom]);
 
   useEffect(() => {
     let cancelled = false;
@@ -276,9 +240,9 @@ function AppContent() {
       <CompositeIndex series={series} loading={seriesLoading} />
 
       <NewsPanel
-        news={news}
-        calendar={calendar}
-        loading={latestLoading || (newsroomLoading && news.length === 0 && calendar.length === 0)}
+        news={latest?.news ?? []}
+        calendar={latest?.calendar ?? []}
+        loading={latestLoading}
       />
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">

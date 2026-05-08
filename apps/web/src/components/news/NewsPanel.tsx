@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, Newspaper } from 'lucide-react';
 import type { CalendarEvent, CalendarEventImportance, NewsCategory, NewsItem } from '@refi-radar/shared';
 
+import { getCalendar, getHeadlines } from '../../lib/api';
 import { relativeTime } from '../../lib/relativeTime';
 import { NewsRow } from './NewsRow';
 
@@ -53,15 +54,46 @@ function CalendarRow({ event }: { event: CalendarEvent }) {
 
 export function NewsPanel({ news, calendar, loading = false }: Props) {
   const [tab, setTab] = useState<TabKey>('all');
+  const [fetchedNews, setFetchedNews] = useState<NewsItem[]>([]);
+  const [fetchedCalendar, setFetchedCalendar] = useState<CalendarEvent[]>([]);
+  const [fetchingSupplemental, setFetchingSupplemental] = useState(false);
+
+  useEffect(() => {
+    if (news.length > 0 && calendar.length > 0) return;
+
+    let cancelled = false;
+    setFetchingSupplemental(true);
+
+    Promise.allSettled([
+      news.length > 0 ? Promise.resolve(news) : getHeadlines({ limit: 8 }),
+      calendar.length > 0 ? Promise.resolve(calendar) : getCalendar({ limit: 5 }),
+    ])
+      .then(([headlinesResult, eventsResult]) => {
+        if (cancelled) return;
+        if (headlinesResult.status === 'fulfilled') setFetchedNews(headlinesResult.value);
+        if (eventsResult.status === 'fulfilled') setFetchedCalendar(eventsResult.value);
+      })
+      .finally(() => {
+        if (!cancelled) setFetchingSupplemental(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calendar, news]);
+
+  const visibleNews = news.length > 0 ? news : fetchedNews;
+  const visibleCalendar = calendar.length > 0 ? calendar : fetchedCalendar;
+  const panelLoading = loading || (fetchingSupplemental && visibleNews.length === 0 && visibleCalendar.length === 0);
 
   const filteredNews = useMemo(() => {
     if (tab === 'calendar') return [];
-    if (tab === 'all') return news;
-    return news.filter((item) => item.category === tab);
-  }, [news, tab]);
+    if (tab === 'all') return visibleNews;
+    return visibleNews.filter((item) => item.category === tab);
+  }, [visibleNews, tab]);
 
   const calendarVisible = tab === 'calendar';
-  const empty = calendarVisible ? calendar.length === 0 : filteredNews.length === 0;
+  const empty = calendarVisible ? visibleCalendar.length === 0 : filteredNews.length === 0;
 
   return (
     <section
@@ -105,7 +137,7 @@ export function NewsPanel({ news, calendar, loading = false }: Props) {
         </nav>
       </header>
 
-      {loading ? (
+      {panelLoading ? (
         <p className="text-[12px] text-fg-dim">Loading…</p>
       ) : empty ? (
         <p className="text-[12px] text-fg-dim">
@@ -113,7 +145,7 @@ export function NewsPanel({ news, calendar, loading = false }: Props) {
         </p>
       ) : calendarVisible ? (
         <ul className="grid gap-0.5">
-          {calendar.map((event) => (
+          {visibleCalendar.map((event) => (
             <CalendarRow key={event.id} event={event} />
           ))}
         </ul>

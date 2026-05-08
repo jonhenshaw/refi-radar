@@ -1,8 +1,20 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CalendarEvent, NewsItem } from '@refi-radar/shared';
 
+import { getCalendar, getHeadlines } from '../../lib/api';
 import { NewsPanel } from './NewsPanel';
+
+
+vi.mock('../../lib/api', () => ({
+  getCalendar: vi.fn(async () => []),
+  getHeadlines: vi.fn(async () => []),
+}));
+
+beforeEach(() => {
+  vi.mocked(getCalendar).mockResolvedValue([]);
+  vi.mocked(getHeadlines).mockResolvedValue([]);
+});
 
 afterEach(cleanup);
 
@@ -57,9 +69,21 @@ describe('NewsPanel', () => {
     expect(screen.queryByText('Fed holds rates steady')).not.toBeInTheDocument();
   });
 
-  it('renders an empty-state message when nothing matches the active tab', () => {
+  it('renders an empty-state message when nothing matches the active tab', async () => {
     render(<NewsPanel news={[]} calendar={[]} />);
     fireEvent.click(screen.getByRole('button', { name: /Calendar/i }));
-    expect(screen.getByText(/No upcoming events/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No upcoming events/i)).toBeInTheDocument();
+  });
+
+  it('loads missing headlines and calendar from the dedicated endpoints', async () => {
+    vi.mocked(getHeadlines).mockResolvedValue([news[0]]);
+    vi.mocked(getCalendar).mockResolvedValue(calendar);
+
+    render(<NewsPanel news={[]} calendar={[]} />);
+
+    expect(await screen.findByText('Fed holds rates steady')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Calendar/i }));
+    expect(await screen.findByText('CPI release')).toBeInTheDocument();
   });
 });
