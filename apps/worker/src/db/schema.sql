@@ -59,3 +59,38 @@ CREATE TABLE IF NOT EXISTS alert_events (
   delivery_status TEXT,
   FOREIGN KEY (rule_id) REFERENCES alert_rules(id)
 );
+
+CREATE TABLE IF NOT EXISTS news_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id TEXT NOT NULL,
+  headline TEXT NOT NULL,
+  summary TEXT,
+  url TEXT NOT NULL,
+  published_at TEXT NOT NULL,
+  fetched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  category TEXT NOT NULL,
+  raw_json TEXT,
+  FOREIGN KEY (source_id) REFERENCES sources(id),
+  UNIQUE(source_id, url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_items_published
+ON news_items(published_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_news_items_category_published
+ON news_items(category, published_at DESC);
+
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  scheduled_for TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  importance TEXT NOT NULL,
+  raw_json TEXT,
+  FOREIGN KEY (source_id) REFERENCES sources(id),
+  UNIQUE(source_id, name, scheduled_for)
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_scheduled
+ON calendar_events(scheduled_for);

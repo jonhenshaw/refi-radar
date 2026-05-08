@@ -61,6 +61,12 @@
   --color-source-mnd: #4D9FFF;
   --color-source-fred: #2DD673;
   --color-source-dgs10: #B295F5;
+  --color-source-dgs2: #6EE7F0;
+  --color-source-dgs30: #F5A742;
+  --color-source-t10y2y: #FF7A45;
+  --color-source-dff: #E879F9;
+  --color-source-sofr: #2DD4BF;
+  --color-source-mortgage15us: #84F0A8;
 }
 
 @layer base {
@@ -202,10 +208,40 @@
     overflow-y: auto;
     max-height: calc(100vh - 64px);
   }
+
+  /* Ticker bar — full-bleed marquee. Compositor-only transform, no JS RAF. */
+  .ticker-track {
+    animation: ticker-scroll 90s linear infinite;
+    will-change: transform;
+  }
+  .ticker-track:hover,
+  .ticker-track:focus-within {
+    animation-play-state: paused;
+  }
+  @keyframes ticker-scroll {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
+  }
+
+  /* Live freshness pulse — used near Topbar timestamp when latest is < 2 minutes old. */
+  .pulse-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-good);
+    animation: pulse-fade 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-fade {
+    0%, 100% { opacity: 0.35; transform: scale(0.85); }
+    50% { opacity: 1; transform: scale(1); }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .chart-skeleton { animation: none; }
   .spin { animation: none; }
   .toast-anim { animation: none; }
+  .ticker-track { animation: none; }
+  .ticker-bar { overflow-x: auto; }
+  .pulse-dot { animation: none; opacity: 1; }
 }

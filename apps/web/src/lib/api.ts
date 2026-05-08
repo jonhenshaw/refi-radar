@@ -1,6 +1,17 @@
-import type { LatestSnapshot, Range, RefiInput, RefiResult, SourceId } from '@refi-radar/shared';
+import type {
+  CalendarEvent,
+  CalendarEventImportance,
+  LatestSnapshot,
+  NewsCategory,
+  NewsItem,
+  NewsSourceId,
+  Range,
+  RateSourceId,
+  RefiInput,
+  RefiResult,
+} from '@refi-radar/shared';
 
-import { SOURCE_COLORS, SOURCE_LABELS_LONG, SOURCE_ORDER } from './sourceTheme';
+import { SOURCE_COLORS, SOURCE_LABELS_LONG, TICKER_ORDER } from './sourceTheme';
 
 export type RangeKey = Range;
 
@@ -10,21 +21,29 @@ export interface SeriesPoint {
 }
 
 export interface RateSeries {
-  sourceId: SourceId;
+  sourceId: RateSourceId;
   label: string;
   color: string;
   points: SeriesPoint[];
 }
 
 interface ApiSeriesResponse {
-  sourceId: SourceId;
+  sourceId: RateSourceId;
   range: Range;
   points: Array<{ time: string; value: number }>;
 }
 
 interface ApiCompareResponse {
   range: Range;
-  series: Partial<Record<SourceId, Array<{ time: string; value: number }>>>;
+  series: Partial<Record<RateSourceId, Array<{ time: string; value: number }>>>;
+}
+
+interface ApiHeadlinesResponse {
+  items: NewsItem[];
+}
+
+interface ApiCalendarResponse {
+  events: CalendarEvent[];
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
@@ -46,7 +65,7 @@ export function getLatest(): Promise<LatestSnapshot> {
   return request<LatestSnapshot>('/api/latest');
 }
 
-export async function getSeries(sourceId: SourceId = 'mnd_30y_fixed', range: RangeKey = '1M'): Promise<RateSeries> {
+export async function getSeries(sourceId: RateSourceId = 'mnd_30y_fixed', range: RangeKey = '1M'): Promise<RateSeries> {
   const response = await request<ApiSeriesResponse>(`/api/series?source=${encodeURIComponent(sourceId)}&range=${range}`);
   return {
     sourceId,
@@ -57,14 +76,53 @@ export async function getSeries(sourceId: SourceId = 'mnd_30y_fixed', range: Ran
 }
 
 export async function getCompareSeries(range: RangeKey = '1M'): Promise<RateSeries[]> {
-  const sources = SOURCE_ORDER.join(',');
+  // Fetch all rate sources here so the multi-source chart, the per-source ladder,
+  // and the cross-source composite index can all read from the same payload.
+  // Consumers that only want the chart's primary three should filter via SOURCE_ORDER.
+  const sources = TICKER_ORDER.join(',');
   const response = await request<ApiCompareResponse>(`/api/series/compare?sources=${encodeURIComponent(sources)}&range=${range}`);
-  return SOURCE_ORDER.map((sourceId) => ({
+  return TICKER_ORDER.map((sourceId) => ({
     sourceId,
     label: SOURCE_LABELS_LONG[sourceId],
     color: SOURCE_COLORS[sourceId],
     points: (response.series[sourceId] ?? []).map((point) => ({ date: point.time.slice(0, 10), rate: point.value })),
   }));
+}
+
+export interface HeadlinesQuery {
+  source?: NewsSourceId;
+  category?: NewsCategory;
+  limit?: number;
+  before?: string;
+}
+
+export async function getHeadlines(query: HeadlinesQuery = {}): Promise<NewsItem[]> {
+  const params = new URLSearchParams();
+  if (query.source) params.set('source', query.source);
+  if (query.category) params.set('category', query.category);
+  if (query.limit) params.set('limit', String(query.limit));
+  if (query.before) params.set('before', query.before);
+  const search = params.toString();
+  const response = await request<ApiHeadlinesResponse>(`/api/headlines${search ? `?${search}` : ''}`);
+  return response.items;
+}
+
+export interface CalendarQuery {
+  from?: string;
+  to?: string;
+  importance?: CalendarEventImportance;
+  limit?: number;
+}
+
+export async function getCalendar(query: CalendarQuery = {}): Promise<CalendarEvent[]> {
+  const params = new URLSearchParams();
+  if (query.from) params.set('from', query.from);
+  if (query.to) params.set('to', query.to);
+  if (query.importance) params.set('importance', query.importance);
+  if (query.limit) params.set('limit', String(query.limit));
+  const search = params.toString();
+  const response = await request<ApiCalendarResponse>(`/api/calendar${search ? `?${search}` : ''}`);
+  return response.events;
 }
 
 export function calculateRefi(input: RefiInput): Promise<RefiResult> {

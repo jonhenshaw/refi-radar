@@ -1,4 +1,4 @@
-import type { SourceId } from '@refi-radar/shared';
+import type { RateSourceId } from '@refi-radar/shared';
 
 import type { RateSeries } from '../../lib/api';
 import { bpsTone, deltaBpsAgo, downsample, fmtBps } from '../../lib/derive';
@@ -7,7 +7,7 @@ import { Sparkline } from './Sparkline';
 interface Props {
   series: RateSeries[];
   height: number;
-  onSelect?: (sourceId: SourceId) => void;
+  onSelect?: (sourceId: RateSourceId) => void;
 }
 
 export function StackedSparklines({ series, height, onSelect }: Props) {

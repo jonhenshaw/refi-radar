@@ -16,6 +16,7 @@ import {
 
 interface Props {
   primary: RateObservation | undefined;
+  sources: RateObservation[];
   series: RateSeries[];
   range: RangeKey;
   targetRate: number;
@@ -29,7 +30,7 @@ interface Cell {
   hideOnPhone?: boolean;
 }
 
-export function KeyStatsGrid({ primary, series, targetRate }: Props) {
+export function KeyStatsGrid({ primary, sources, series, targetRate }: Props) {
   const mnd = series.find((s) => s.sourceId === 'mnd_30y_fixed');
   const treasury = series.find((s) => s.sourceId === 'fred_dgs10');
   const rate = primary?.rate;
@@ -72,6 +73,12 @@ export function KeyStatsGrid({ primary, series, targetRate }: Props) {
   })();
   const trendTone: Cell['tone'] =
     trend30?.direction === 'down' ? 'good' : trend30?.direction === 'up' ? 'bad' : trend30 ? 'flat' : 'unknown';
+
+  // Spot values for the new tiles come from /api/latest (which carries all 9 rate sources),
+  // not /api/series/compare (which still requests only the 3 chart sources).
+  const t10y2yLast = sources.find((s) => s.sourceId === 'fred_t10y2y')?.rate;
+  const t10y2yBps = typeof t10y2yLast === 'number' ? Math.round(t10y2yLast * 100) : undefined;
+  const dffLast = sources.find((s) => s.sourceId === 'fred_dff')?.rate;
 
   const cells: Cell[] = [
     {
@@ -160,6 +167,24 @@ export function KeyStatsGrid({ primary, series, targetRate }: Props) {
       value: trendValue,
       sub: trend30 ? `${trend30.direction}` : 'MND',
       tone: trendTone,
+      hideOnPhone: true,
+    },
+    {
+      label: '10Y-2Y',
+      value:
+        typeof t10y2yBps === 'number'
+          ? `${t10y2yBps > 0 ? '+' : t10y2yBps < 0 ? '−' : ''}${Math.abs(t10y2yBps)} bps`
+          : '—',
+      sub: typeof t10y2yBps === 'number' && t10y2yBps < 0 ? 'inverted' : 'spread',
+      tone:
+        typeof t10y2yBps === 'number' ? (t10y2yBps < 0 ? 'bad' : t10y2yBps > 0 ? 'good' : 'flat') : 'unknown',
+      hideOnPhone: true,
+    },
+    {
+      label: 'Fed funds',
+      value: fmtPct(dffLast),
+      sub: 'DFF',
+      tone: 'flat',
       hideOnPhone: true,
     },
   ];

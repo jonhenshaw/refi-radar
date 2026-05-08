@@ -1,4 +1,24 @@
-export type SourceId = 'mnd_30y_fixed' | 'fred_mortgage30us' | 'fred_dgs10';
+export type RateSourceId =
+  | 'mnd_30y_fixed'
+  | 'fred_mortgage30us'
+  | 'fred_dgs10'
+  | 'fred_dgs2'
+  | 'fred_dgs30'
+  | 'fred_t10y2y'
+  | 'fred_dff'
+  | 'fred_sofr'
+  | 'fred_mortgage15us';
+
+export type NewsSourceId =
+  | 'fed_press'
+  | 'marketwatch_bonds'
+  | 'cnbc_bonds'
+  | 'mnd_commentary'
+  | 'treasury_auctions';
+
+export type CalendarSourceId = 'curated_calendar';
+
+export type SourceId = RateSourceId | NewsSourceId | CalendarSourceId;
 
 export type ObservationConfidence =
   | 'market_estimate'
@@ -7,7 +27,7 @@ export type ObservationConfidence =
   | 'user_derived';
 
 export interface RateObservation {
-  sourceId: SourceId;
+  sourceId: RateSourceId;
   observedAt: string;
   fetchedAt: string;
   rate: number;
@@ -24,10 +44,38 @@ export interface SourceHealth {
   lastError?: string;
 }
 
+export type NewsCategory = 'fed' | 'markets' | 'mortgage' | 'auctions' | 'commentary';
+
+export interface NewsItem {
+  sourceId: NewsSourceId;
+  headline: string;
+  summary?: string;
+  url: string;
+  publishedAt: string;
+  fetchedAt: string;
+  category: NewsCategory;
+  raw?: unknown;
+}
+
+export type CalendarEventKind = 'fomc' | 'cpi' | 'jobs' | 'auction' | 'other';
+export type CalendarEventImportance = 'high' | 'medium' | 'low';
+
+export interface CalendarEvent {
+  id: string;
+  sourceId: SourceId;
+  name: string;
+  scheduledFor: string;
+  kind: CalendarEventKind;
+  importance: CalendarEventImportance;
+  raw?: unknown;
+}
+
 export interface LatestSnapshot {
   primary?: RateObservation;
   sources: RateObservation[];
   health: SourceHealth[];
+  news?: NewsItem[];
+  calendar?: CalendarEvent[];
 }
 
 export interface RefiInput {
@@ -41,7 +89,7 @@ export interface RefiInput {
 export interface AlertRule {
   id: string;
   userId: string;
-  sourceId: SourceId;
+  sourceId: RateSourceId;
   ruleType: 'below_rate' | 'above_rate' | 'drop_from_recent_high_bps' | 'daily_summary' | 'weekly_summary' | 'break_even_below_months';
   threshold?: number;
   thresholdBps?: number;
