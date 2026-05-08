@@ -13,6 +13,7 @@ import { ChartDialog } from './components/chart/ChartDialog';
 import { Hero } from './components/Hero';
 import { KeyLevels } from './components/KeyLevels';
 import { KeyStatsGrid } from './components/KeyStatsGrid';
+import { NewsPanel } from './components/news/NewsPanel';
 import { PerSourceLadder } from './components/PerSourceLadder';
 import { RangeTabs } from './components/RangeTabs';
 import { RateChart } from './components/chart/RateChart';
@@ -20,6 +21,7 @@ import { RateLadder } from './components/RateLadder';
 import { RefiCalculator } from './components/RefiCalculator';
 import { RefiSignal } from './components/RefiSignal';
 import { SpreadTracker } from './components/SpreadTracker';
+import { TickerBar } from './components/TickerBar';
 import { Topbar } from './components/Topbar';
 import { ToastProvider, useToast } from './components/toast/ToastProvider';
 import { useAlertEvaluator } from './hooks/useAlertEvaluator';
@@ -158,12 +160,15 @@ function AppContent() {
   const fresh = freshnessText(latest ?? undefined);
 
   return (
-    <main className="mx-auto w-full max-w-[1280px] px-3 sm:px-6 pb-12">
+    <>
+      <TickerBar snapshot={latest} />
+      <main className="mx-auto w-full max-w-[1280px] px-3 sm:px-6 pb-12">
       <Topbar
         liveCount={liveCount}
         totalCount={totalCount}
         usingDemo={usingDemo}
         freshnessText={fresh}
+        lastFetchedAt={primary?.fetchedAt}
         targetRate={targetRate}
         onTargetRateChange={setTargetRate}
       />
@@ -225,6 +230,12 @@ function AppContent() {
           onSelectSource={setSelectedSourceId}
         />
       </section>
+
+      <NewsPanel
+        news={latest?.news ?? []}
+        calendar={latest?.calendar ?? []}
+        loading={latestLoading}
+      />
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">
         <div className="lg:col-span-7">
@@ -343,6 +354,7 @@ function AppContent() {
         onToggle={toggleRule}
         onDelete={deleteRule}
       />
-    </main>
+      </main>
+    </>
   );
 }
