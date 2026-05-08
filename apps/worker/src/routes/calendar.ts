@@ -24,7 +24,7 @@ calendarRoutes.get('/calendar', async (c) => {
   }
 
   const limit = limitParam ? Number(limitParam) : 20;
-  if (!Number.isFinite(limit) || limit < 1 || limit > 100) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     return c.json({ error: 'invalid_limit' }, 400);
   }
 

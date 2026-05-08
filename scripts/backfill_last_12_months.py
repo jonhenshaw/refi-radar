@@ -170,14 +170,34 @@ def chunks(items: list[str], n: int) -> Iterable[list[str]]:
         yield items[i : i + n]
 
 
+def fred_series_id_from_url(url: str) -> str | None:
+    if "fredgraph.csv?id=" not in url:
+        return None
+    return url.rsplit("id=", 1)[-1]
+
+
+def confidence_from_kind(kind: str) -> str:
+    return "weekly_survey" if kind == "weekly_survey" else "proxy"
+
+
 def main() -> int:
     since = cutoff_date()
     fetched_at = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
     print(f"Fetching 12-month history since {since.isoformat()}...", file=sys.stderr)
     observations: list[Observation] = []
     observations.extend(fetch_mnd_observations(since))
-    observations.extend(fetch_fred_observations("MORTGAGE30US", "fred_mortgage30us", "weekly_survey", since))
-    observations.extend(fetch_fred_observations("DGS10", "fred_dgs10", "proxy", since))
+    for source_id, _name, kind, url, _cadence in SOURCES:
+        if source_id == "mnd_30y_fixed":
+            continue
+        series_id = fred_series_id_from_url(url)
+        if not series_id:
+            continue
+        try:
+            observations.extend(
+                fetch_fred_observations(series_id, source_id, confidence_from_kind(kind), since)
+            )
+        except Exception as exc:
+            print(f"  ! {source_id} ({series_id}) skipped: {exc}", file=sys.stderr)
     observations.sort(key=lambda o: (o.source_id, o.observed_at))
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

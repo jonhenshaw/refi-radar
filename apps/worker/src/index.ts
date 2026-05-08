@@ -11,7 +11,13 @@ import { getLatestSnapshot } from './services/latest';
 const app = new Hono<{ Bindings: Env }>();
 
 app.use('/api/*', cors({
-  origin: ['https://refi-radar.pages.dev', 'http://localhost:5173'],
+  origin: (origin) => {
+    if (!origin) return null;
+    if (origin === 'http://localhost:5173') return origin;
+    if (origin === 'https://refi-radar.pages.dev') return origin;
+    if (origin.endsWith('.refi-radar.pages.dev')) return origin;
+    return null;
+  },
   allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['content-type'],
 }));

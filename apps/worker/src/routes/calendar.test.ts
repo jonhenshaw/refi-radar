@@ -30,6 +30,12 @@ describe('calendar route', () => {
     await expect(res.json()).resolves.toMatchObject({ error: 'invalid_date_range' });
   });
 
+  it('rejects a fractional limit', async () => {
+    const res = await app.fetch(new Request('http://localhost/api/calendar?limit=2.5'), {});
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({ error: 'invalid_limit' });
+  });
+
   it('returns events from DB', async () => {
     const db = makeDb([
       {

@@ -36,6 +36,12 @@ describe('headlines route', () => {
     await expect(res.json()).resolves.toMatchObject({ error: 'invalid_limit' });
   });
 
+  it('rejects a fractional limit', async () => {
+    const res = await app.fetch(new Request('http://localhost/api/headlines?limit=1.5'), {});
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({ error: 'invalid_limit' });
+  });
+
   it('returns mapped items from DB', async () => {
     const db = makeDb([
       {

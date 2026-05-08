@@ -196,6 +196,7 @@ function AppContent() {
 
       <KeyStatsGrid
         primary={primary}
+        sources={sources}
         series={series}
         range={range}
         targetRate={targetRate}
