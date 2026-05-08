@@ -1,6 +1,9 @@
 import type { LatestSnapshot, RateObservation, RateSourceId, SourceHealth } from '@refi-radar/shared';
-import { getLatestObservations } from '../db/queries';
+import { getLatestObservations, getRecentNews, getUpcomingCalendar } from '../db/queries';
 import type { Env } from '../env';
+
+const SNAPSHOT_NEWS_LIMIT = 8;
+const SNAPSHOT_CALENDAR_LIMIT = 5;
 
 const PRIMARY_SOURCE_PRIORITY: RateSourceId[] = ['mnd_30y_fixed', 'fred_mortgage30us', 'fred_dgs10'];
 
@@ -46,11 +49,17 @@ export async function getLatestSnapshot(env: Env): Promise<LatestSnapshot> {
 }
 
 export async function buildLatestSnapshot(db: D1Database): Promise<LatestSnapshot> {
-  const sources = await getLatestObservations(db);
+  const [sources, news, calendar] = await Promise.all([
+    getLatestObservations(db),
+    getRecentNews(db, { limit: SNAPSHOT_NEWS_LIMIT }),
+    getUpcomingCalendar(db, { limit: SNAPSHOT_CALENDAR_LIMIT }),
+  ]);
   return {
     primary: choosePrimaryObservation(sources),
     sources,
     health: buildSourceHealth(sources),
+    news,
+    calendar,
   };
 }
 
