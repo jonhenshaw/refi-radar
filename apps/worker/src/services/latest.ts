@@ -49,11 +49,18 @@ export async function getLatestSnapshot(env: Env): Promise<LatestSnapshot> {
 }
 
 export async function buildLatestSnapshot(db: D1Database): Promise<LatestSnapshot> {
-  const [sources, news, calendar] = await Promise.all([
+  // Rate observations are the snapshot's primary contract; news/calendar are
+  // supplemental. If their queries fail (missing table, transient D1 error)
+  // we degrade gracefully so /api/latest still returns rate data.
+  const [sourcesResult, newsResult, calendarResult] = await Promise.allSettled([
     getLatestObservations(db),
     getRecentNews(db, { limit: SNAPSHOT_NEWS_LIMIT }),
     getUpcomingCalendar(db, { limit: SNAPSHOT_CALENDAR_LIMIT }),
   ]);
+  if (sourcesResult.status === 'rejected') throw sourcesResult.reason;
+  const sources = sourcesResult.value;
+  const news = newsResult.status === 'fulfilled' ? newsResult.value : [];
+  const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : [];
   return {
     primary: choosePrimaryObservation(sources),
     sources,

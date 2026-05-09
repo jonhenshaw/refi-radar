@@ -263,6 +263,8 @@ function AppContent() {
         news={latest?.news ?? []}
         calendar={latest?.calendar ?? []}
         loading={latestLoading}
+        fallbackNews={demoLatest.news ?? []}
+        fallbackCalendar={demoLatest.calendar ?? []}
       />
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-12">

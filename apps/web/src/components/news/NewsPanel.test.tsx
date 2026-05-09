@@ -75,6 +75,23 @@ describe('NewsPanel', () => {
     expect(await screen.findByText(/No upcoming events/i)).toBeInTheDocument();
   });
 
+  it('falls back to provided sample data when both snapshot and api return empty', async () => {
+    render(
+      <NewsPanel
+        news={[]}
+        calendar={[]}
+        fallbackNews={[news[0]]}
+        fallbackCalendar={calendar}
+      />,
+    );
+
+    expect(await screen.findByText('Fed holds rates steady')).toBeInTheDocument();
+    expect(screen.getByText(/Sample feed/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Calendar/i }));
+    expect(await screen.findByText('CPI release')).toBeInTheDocument();
+  });
+
   it('loads missing headlines and calendar from the dedicated endpoints', async () => {
     vi.mocked(getHeadlines).mockResolvedValue([news[0]]);
     vi.mocked(getCalendar).mockResolvedValue(calendar);

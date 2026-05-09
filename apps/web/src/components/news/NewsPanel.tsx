@@ -10,6 +10,8 @@ interface Props {
   news: NewsItem[];
   calendar: CalendarEvent[];
   loading?: boolean;
+  fallbackNews?: NewsItem[];
+  fallbackCalendar?: CalendarEvent[];
 }
 
 type TabKey = 'all' | NewsCategory | 'calendar';
@@ -52,11 +54,18 @@ function CalendarRow({ event }: { event: CalendarEvent }) {
   );
 }
 
-export function NewsPanel({ news, calendar, loading = false }: Props) {
+export function NewsPanel({
+  news,
+  calendar,
+  loading = false,
+  fallbackNews = [],
+  fallbackCalendar = [],
+}: Props) {
   const [tab, setTab] = useState<TabKey>('all');
   const [fetchedNews, setFetchedNews] = useState<NewsItem[]>([]);
   const [fetchedCalendar, setFetchedCalendar] = useState<CalendarEvent[]>([]);
   const [fetchingSupplemental, setFetchingSupplemental] = useState(false);
+  const [supplementalAttempted, setSupplementalAttempted] = useState(false);
 
   useEffect(() => {
     if (news.length > 0 && calendar.length > 0) return;
@@ -74,7 +83,10 @@ export function NewsPanel({ news, calendar, loading = false }: Props) {
         if (eventsResult.status === 'fulfilled') setFetchedCalendar(eventsResult.value);
       })
       .finally(() => {
-        if (!cancelled) setFetchingSupplemental(false);
+        if (!cancelled) {
+          setFetchingSupplemental(false);
+          setSupplementalAttempted(true);
+        }
       });
 
     return () => {
@@ -82,9 +94,16 @@ export function NewsPanel({ news, calendar, loading = false }: Props) {
     };
   }, [calendar, news]);
 
-  const visibleNews = news.length > 0 ? news : fetchedNews;
-  const visibleCalendar = calendar.length > 0 ? calendar : fetchedCalendar;
-  const panelLoading = loading || (fetchingSupplemental && visibleNews.length === 0 && visibleCalendar.length === 0);
+  const liveNews = news.length > 0 ? news : fetchedNews;
+  const liveCalendar = calendar.length > 0 ? calendar : fetchedCalendar;
+  // Once both the snapshot and the secondary /api fetch have produced no items,
+  // surface curated sample data so the panel never appears broken. The "(sample)"
+  // labels in the demo entries plus the badge below keep this transparent.
+  const exhaustedLiveSources = supplementalAttempted && liveNews.length === 0 && liveCalendar.length === 0;
+  const usingFallback = exhaustedLiveSources && (fallbackNews.length > 0 || fallbackCalendar.length > 0);
+  const visibleNews = liveNews.length > 0 ? liveNews : usingFallback ? fallbackNews : [];
+  const visibleCalendar = liveCalendar.length > 0 ? liveCalendar : usingFallback ? fallbackCalendar : [];
+  const panelLoading = loading || (fetchingSupplemental && liveNews.length === 0 && liveCalendar.length === 0);
 
   const filteredNews = useMemo(() => {
     if (tab === 'calendar') return [];
@@ -107,6 +126,15 @@ export function NewsPanel({ news, calendar, loading = false }: Props) {
             <p className="text-[10px] uppercase tracking-[0.18em] text-fg-dim">Newsroom</p>
             <h2 className="text-base font-semibold tracking-tight text-fg">Headlines &amp; calendar</h2>
           </div>
+          {usingFallback ? (
+            <span
+              role="status"
+              className="ml-2 inline-flex items-center rounded-sm border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-warn"
+              title="Live news/calendar feed unavailable; showing curated samples."
+            >
+              Sample feed
+            </span>
+          ) : null}
         </div>
         <nav className="flex flex-wrap gap-1" aria-label="News categories">
           {TABS.map((t) => {
