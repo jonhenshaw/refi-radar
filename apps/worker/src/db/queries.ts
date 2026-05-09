@@ -74,6 +74,8 @@ interface CalendarRow {
 }
 
 const SUMMARY_MAX_CHARS = 240;
+const NEWS_INSERT_CHUNK_SIZE = 10;
+const CALENDAR_UPSERT_CHUNK_SIZE = 10;
 
 function truncate(value: string | undefined, max: number): string | null {
   if (!value) return null;
@@ -81,11 +83,29 @@ function truncate(value: string | undefined, max: number): string | null {
   return value.slice(0, max - 1).trimEnd() + '…';
 }
 
-export async function upsertSource(db: D1Database, source: SourceInput): Promise<void> {
+function chunks<T>(items: T[], size: number): T[][] {
+  const output: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    output.push(items.slice(index, index + size));
+  }
+  return output;
+}
+
+export async function upsertSources(db: D1Database, sources: SourceInput[]): Promise<void> {
+  if (sources.length === 0) return;
+  const placeholders = sources.map(() => '(?, ?, ?, ?, ?, ?)').join(', ');
+  const binds = sources.flatMap((source) => [
+    source.id,
+    source.name,
+    source.kind,
+    source.url ?? null,
+    source.cadenceMinutes ?? null,
+    source.enabled === false ? 0 : 1,
+  ]);
   await db
     .prepare(
       `INSERT INTO sources (id, name, kind, url, cadence_minutes, enabled)
-       VALUES (?, ?, ?, ?, ?, ?)
+       VALUES ${placeholders}
        ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         kind = excluded.kind,
@@ -93,8 +113,12 @@ export async function upsertSource(db: D1Database, source: SourceInput): Promise
         cadence_minutes = excluded.cadence_minutes,
         enabled = excluded.enabled`,
     )
-    .bind(source.id, source.name, source.kind, source.url ?? null, source.cadenceMinutes ?? null, source.enabled === false ? 0 : 1)
+    .bind(...binds)
     .run();
+}
+
+export async function upsertSource(db: D1Database, source: SourceInput): Promise<void> {
+  await upsertSources(db, [source]);
 }
 
 export async function insertObservation(db: D1Database, observation: ObservationInput): Promise<{ inserted: boolean }> {
@@ -165,25 +189,29 @@ function rowToObservation(row: ObservationRow): RateObservation {
 export async function upsertNewsItems(db: D1Database, items: NewsItemInput[]): Promise<{ inserted: number }> {
   if (items.length === 0) return { inserted: 0 };
   let inserted = 0;
-  for (const item of items) {
+
+  for (const chunk of chunks(items, NEWS_INSERT_CHUNK_SIZE)) {
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const binds = chunk.flatMap((item) => [
+      item.sourceId,
+      item.headline,
+      truncate(item.summary, SUMMARY_MAX_CHARS),
+      item.url,
+      item.publishedAt,
+      item.fetchedAt,
+      item.category,
+      item.raw === undefined ? null : JSON.stringify(item.raw),
+    ]);
     const result = await db
       .prepare(
         `INSERT OR IGNORE INTO news_items (source_id, headline, summary, url, published_at, fetched_at, category, raw_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ${placeholders}`,
       )
-      .bind(
-        item.sourceId,
-        item.headline,
-        truncate(item.summary, SUMMARY_MAX_CHARS),
-        item.url,
-        item.publishedAt,
-        item.fetchedAt,
-        item.category,
-        item.raw === undefined ? null : JSON.stringify(item.raw),
-      )
+      .bind(...binds)
       .run();
-    if (Number(result.meta?.changes ?? 0) > 0) inserted += 1;
+    inserted += Number(result.meta?.changes ?? 0);
   }
+
   return { inserted };
 }
 
@@ -237,11 +265,22 @@ function rowToNews(row: NewsRow): NewsItem {
 export async function upsertCalendarEvents(db: D1Database, events: CalendarEventInput[]): Promise<{ inserted: number }> {
   if (events.length === 0) return { inserted: 0 };
   let inserted = 0;
-  for (const event of events) {
+
+  for (const chunk of chunks(events, CALENDAR_UPSERT_CHUNK_SIZE)) {
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const binds = chunk.flatMap((event) => [
+      event.id,
+      event.sourceId,
+      event.name,
+      event.scheduledFor,
+      event.kind,
+      event.importance,
+      event.raw === undefined ? null : JSON.stringify(event.raw),
+    ]);
     const result = await db
       .prepare(
         `INSERT INTO calendar_events (id, source_id, name, scheduled_for, kind, importance, raw_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
+         VALUES ${placeholders}
          ON CONFLICT(id) DO UPDATE SET
           source_id = excluded.source_id,
           name = excluded.name,
@@ -250,18 +289,11 @@ export async function upsertCalendarEvents(db: D1Database, events: CalendarEvent
           importance = excluded.importance,
           raw_json = excluded.raw_json`,
       )
-      .bind(
-        event.id,
-        event.sourceId,
-        event.name,
-        event.scheduledFor,
-        event.kind,
-        event.importance,
-        event.raw === undefined ? null : JSON.stringify(event.raw),
-      )
+      .bind(...binds)
       .run();
-    if (Number(result.meta?.changes ?? 0) > 0) inserted += 1;
+    inserted += Number(result.meta?.changes ?? 0);
   }
+
   return { inserted };
 }
 

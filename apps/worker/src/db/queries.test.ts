@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { insertObservation, getLatestObservations, getSeries, upsertSource } from './queries';
+import {
+  getLatestObservations,
+  getSeries,
+  insertObservation,
+  upsertCalendarEvents,
+  upsertNewsItems,
+  upsertSource,
+} from './queries';
 
 class MockD1 {
   sources = new Map<string, unknown>();
   observations: Array<Record<string, unknown>> = [];
+  preparedSql: string[] = [];
 
   prepare(sql: string) {
+    this.preparedSql.push(sql);
     return {
       bind: (...params: unknown[]) => ({
         run: async () => {
@@ -19,6 +28,12 @@ class MockD1 {
               this.observations.push({ id: this.observations.length + 1, source_id: params[0], observed_at: params[1], fetched_at: params[2], rate: params[3], change_bps: params[4], confidence: params[5], raw_json: params[6] });
             }
             return { success: true, meta: { changes: duplicate ? 0 : 1 } };
+          }
+          if (sql.includes('INSERT OR IGNORE INTO news_items')) {
+            return { success: true, meta: { changes: params.length / 8 } };
+          }
+          if (sql.includes('INSERT INTO calendar_events')) {
+            return { success: true, meta: { changes: params.length / 7 } };
           }
           return { success: true, meta: { changes: 0 } };
         },
@@ -52,5 +67,42 @@ describe('D1 query helpers', () => {
     await expect(getSeries(db, 'fred_mortgage30us', 'MAX')).resolves.toEqual([
       expect.objectContaining({ sourceId: 'fred_mortgage30us', observedAt: '2026-04-30', rate: 6.3 }),
     ]);
+  });
+
+  it('batches news and calendar writes to stay below Worker subrequest limits', async () => {
+    const mock = new MockD1();
+    const db = mock as unknown as D1Database;
+    const fetchedAt = '2026-05-08T12:00:00.000Z';
+
+    const newsItems = Array.from({ length: 23 }, (_, index) => ({
+      sourceId: 'fed_press' as const,
+      headline: `Headline ${index}`,
+      summary: 'A short summary',
+      url: `https://example.com/news/${index}`,
+      publishedAt: fetchedAt,
+      fetchedAt,
+      category: 'fed' as const,
+    }));
+    const news = await upsertNewsItems(db, newsItems);
+
+    const calendarEvents = Array.from({ length: 21 }, (_, index) => ({
+      id: `event-${index}`,
+      sourceId: 'curated_calendar',
+      name: `Event ${index}`,
+      scheduledFor: fetchedAt,
+      kind: 'fomc' as const,
+      importance: 'high' as const,
+    }));
+    const calendar = await upsertCalendarEvents(db, calendarEvents);
+
+    const newsInsertSql = mock.preparedSql.filter((sql) => sql.includes('INSERT OR IGNORE INTO news_items'));
+    const calendarInsertSql = mock.preparedSql.filter((sql) => sql.includes('INSERT INTO calendar_events'));
+
+    expect(news.inserted).toBe(23);
+    expect(calendar.inserted).toBe(21);
+    expect(newsInsertSql).toHaveLength(3);
+    expect(calendarInsertSql).toHaveLength(3);
+    expect(newsInsertSql[0].match(/\(\?, \?, \?, \?, \?, \?, \?, \?\)/g)).toHaveLength(10);
+    expect(calendarInsertSql[0].match(/\(\?, \?, \?, \?, \?, \?, \?\)/g)).toHaveLength(10);
   });
 });

@@ -19,7 +19,7 @@ import {
   insertObservation,
   upsertCalendarEvents,
   upsertNewsItems,
-  upsertSource,
+  upsertSources,
   type NewsItemInput,
 } from '../db/queries';
 import type { Env } from '../env';
@@ -52,7 +52,16 @@ export async function collectAllSources(env: Env): Promise<CollectionResult> {
   }
 
   try {
-    await upsertSource(env.DB, mndSource);
+    await upsertSources(env.DB, [
+      mndSource,
+      ...NEWS_COLLECTORS.map((collector) => collector.config.source),
+      curatedCalendarSource,
+    ]);
+  } catch (error) {
+    return { ok: false, results: [{ sourceId: 'sources', ok: false, inserted: 0, error: errorMessage(error) }] };
+  }
+
+  try {
     const observation = await fetchMndThirtyYearFixed();
     const insert = await insertObservation(env.DB, observation);
     results.push({ sourceId: observation.sourceId, ok: true, inserted: insert.inserted ? 1 : 0 });
@@ -66,7 +75,6 @@ export async function collectAllSources(env: Env): Promise<CollectionResult> {
   for (const collector of NEWS_COLLECTORS) {
     const sourceId = collector.config.source.id;
     try {
-      await upsertSource(env.DB, collector.config.source);
       const xml = await collector.fetch();
       const items = collector.parse(xml);
       const result = await upsertNewsItems(env.DB, items);
@@ -77,7 +85,6 @@ export async function collectAllSources(env: Env): Promise<CollectionResult> {
   }
 
   try {
-    await upsertSource(env.DB, curatedCalendarSource);
     const events = loadCuratedCalendar();
     const result = await upsertCalendarEvents(env.DB, events);
     results.push({ sourceId: curatedCalendarSource.id, ok: true, inserted: result.inserted });
