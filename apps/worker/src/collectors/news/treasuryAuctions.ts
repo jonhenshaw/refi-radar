@@ -1,13 +1,13 @@
 import type { NewsItemInput } from '../../db/queries';
-import { fetchFeedText, parseRssItems, rssItemsToNewsItems, type RssCollectorConfig } from './util';
+import { decodeEntities, fetchFeedText, parseRssItems, rssItemsToNewsItems, stripTags, type RssCollectorConfig } from './util';
 
-const FEED_URL = 'https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query?sort=-announcemt_date,-auction_date&page[size]=30';
-const TREASURY_DIRECT_ANNOUNCEMENTS_URL = 'https://www.treasurydirect.gov/auctions/announcements-data-results/announcement-results-press-releases/';
+const FEED_URL = 'https://home.treasury.gov/news/press-releases?field_press_release_type_target_id=446';
+const HOME_TREASURY_BASE_URL = 'https://home.treasury.gov';
 
 export const treasuryAuctionsConfig: RssCollectorConfig = {
   source: {
     id: 'treasury_auctions',
-    name: 'Treasury Direct Auctions',
+    name: 'Treasury Auction/Refunding Announcements',
     kind: 'news_feed',
     url: FEED_URL,
     cadenceMinutes: 240,
@@ -42,12 +42,44 @@ export function parseTreasuryAuctions(payload: string, fetchedAt = new Date().to
     return fiscalDataAuctionsToNewsItems(parseFiscalDataAuctions(trimmed), fetchedAt);
   }
 
+  if (/<!doctype html|<html\b/i.test(trimmed)) {
+    return treasuryPressReleaseLinksToNewsItems(trimmed, fetchedAt);
+  }
+
   return rssItemsToNewsItems(parseRssItems(payload), treasuryAuctionsConfig, fetchedAt);
 }
 
 export function parseFiscalDataAuctions(json: string): FiscalDataAuctionRow[] {
   const parsed = JSON.parse(json) as FiscalDataAuctionResponse;
   return Array.isArray(parsed.data) ? parsed.data : [];
+}
+
+export function treasuryPressReleaseLinksToNewsItems(html: string, fetchedAt: string): NewsItemInput[] {
+  const items: NewsItemInput[] = [];
+  const releaseRe = /<time\s+datetime=["']([^"']+)["'][^>]*>[\s\S]*?<a\s+href=["']([^"']*\/news\/press-releases\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = releaseRe.exec(html)) && items.length < 30) {
+    const headline = decodeEntities(stripTags(match[3])).replace(/\s+/g, ' ').trim();
+    if (!isAuctionRelatedTreasuryRelease(headline)) continue;
+
+    const href = decodeEntities(match[2]);
+    const url = href.startsWith('http') ? href : `${HOME_TREASURY_BASE_URL}${href}`;
+    items.push({
+      sourceId: treasuryAuctionsConfig.source.id,
+      headline,
+      summary: 'Treasury financing, borrowing, quarterly refunding, or auction-related press release.',
+      url,
+      publishedAt: normalizeDate(match[1]),
+      fetchedAt,
+      category: treasuryAuctionsConfig.category,
+      raw: { feedUrl: treasuryAuctionsConfig.feedUrl },
+    });
+  }
+  return items;
+}
+
+function isAuctionRelatedTreasuryRelease(headline: string): boolean {
+  return /quarterly refunding|borrowing|treasury borrowing advisory committee|marketable borrowing|auction/i.test(headline);
 }
 
 function fiscalDataAuctionsToNewsItems(rows: FiscalDataAuctionRow[], fetchedAt: string): NewsItemInput[] {
@@ -73,7 +105,7 @@ function fiscalDataAuctionsToNewsItems(rows: FiscalDataAuctionRow[], fetchedAt: 
       sourceId: treasuryAuctionsConfig.source.id,
       headline: `Treasury announces ${securityTerm} ${securityType} auction for ${auctionDate}`,
       summary: details.length > 0 ? details.join('; ') : undefined,
-      url: `${TREASURY_DIRECT_ANNOUNCEMENTS_URL}#${encodeURIComponent(cusip)}`,
+      url: `${HOME_TREASURY_BASE_URL}/news/press-releases#${encodeURIComponent(cusip)}`,
       publishedAt: normalizeDate(announcementDate ?? auctionDate),
       fetchedAt,
       category: treasuryAuctionsConfig.category,

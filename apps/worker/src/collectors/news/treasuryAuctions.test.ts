@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseFiscalDataAuctions, parseTreasuryAuctions, treasuryAuctionsConfig } from './treasuryAuctions';
+import { parseFiscalDataAuctions, parseTreasuryAuctions, treasuryAuctionsConfig, treasuryPressReleaseLinksToNewsItems } from './treasuryAuctions';
 
 const FISCAL_DATA_FIXTURE = JSON.stringify({
   data: [
@@ -18,9 +18,8 @@ const FISCAL_DATA_FIXTURE = JSON.stringify({
 });
 
 describe('treasuryAuctions collector', () => {
-  it('uses the Fiscal Data auctions API instead of the TreasuryDirect RSS endpoint', () => {
-    expect(treasuryAuctionsConfig.feedUrl).toContain('api.fiscaldata.treasury.gov');
-    expect(treasuryAuctionsConfig.feedUrl).toContain('/auctions_query');
+  it('uses the Treasury press releases page instead of TLS-problematic TreasuryDirect/FiscalData API endpoints', () => {
+    expect(treasuryAuctionsConfig.feedUrl).toBe('https://home.treasury.gov/news/press-releases?field_press_release_type_target_id=446');
   });
 
   it('parses Fiscal Data auction rows into news items', () => {
@@ -36,6 +35,27 @@ describe('treasuryAuctions collector', () => {
         headline: 'Treasury announces 6-Week Bill auction for 2026-05-12',
         publishedAt: '2026-05-07T00:00:00.000Z',
         summary: '$80B offering; issues 2026-05-14; matures 2026-06-25; Single-Price auction',
+      }),
+    ]);
+  });
+
+  it('parses Treasury press release HTML into auction/refunding news items', () => {
+    const fetchedAt = '2026-05-09T16:00:00.000Z';
+    const html = `<!doctype html><html><body>
+      <time datetime="2026-05-06T13:00:00Z">May 6, 2026</time>
+      <h3><a href="/news/press-releases/sb0489">Quarterly Refunding Statement of Deputy Assistant Secretary for Federal Finance Brian Smith</a></h3>
+      <time datetime="2026-05-07T14:30:00Z">May 7, 2026</time>
+      <h3><a href="/news/press-releases/sb0492">Unrelated sanctions headline</a></h3>
+    </body></html>`;
+
+    expect(treasuryPressReleaseLinksToNewsItems(html, fetchedAt)).toEqual([
+      expect.objectContaining({
+        sourceId: 'treasury_auctions',
+        category: 'auctions',
+        fetchedAt,
+        headline: 'Quarterly Refunding Statement of Deputy Assistant Secretary for Federal Finance Brian Smith',
+        url: 'https://home.treasury.gov/news/press-releases/sb0489',
+        publishedAt: '2026-05-06T13:00:00.000Z',
       }),
     ]);
   });
