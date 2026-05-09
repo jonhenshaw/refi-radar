@@ -1,6 +1,6 @@
 import type { ObservationConfidence } from '@refi-radar/shared';
-import type { ObservationInput } from '../db/queries';
-import { insertObservation, upsertSource } from '../db/queries';
+import type { ObservationInput, SourceInput } from '../db/queries';
+import { insertObservation, upsertSources } from '../db/queries';
 import type { Env } from '../env';
 
 const FRED_BASE_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=';
@@ -72,6 +72,14 @@ const FRED_SOURCES = [
   },
 ];
 
+const FRED_SOURCE_INPUTS: SourceInput[] = FRED_SOURCES.map((source) => ({
+  id: source.sourceId,
+  name: source.name,
+  kind: source.kind,
+  url: `${FRED_BASE_URL}${source.seriesId}`,
+  cadenceMinutes: source.cadenceMinutes,
+}));
+
 export function parseFredCsv(csv: string, sourceId: string, confidence: ObservationConfidence, maxObservations = 400): ObservationInput[] {
   const lines = csv.trim().split(/\r?\n/).filter(Boolean);
   const [, ...rows] = lines;
@@ -117,17 +125,12 @@ export async function collectFredSources(env: Env): Promise<{ ok: boolean; resul
     return { ok: false, results: FRED_SOURCES.map((source) => ({ sourceId: source.sourceId, ok: false, inserted: 0, error: 'DB binding missing' })) };
   }
 
+  await upsertSources(env.DB, FRED_SOURCE_INPUTS);
+
   for (const source of FRED_SOURCES) {
     try {
-      await upsertSource(env.DB, {
-        id: source.sourceId,
-        name: source.name,
-        kind: source.kind,
-        url: `${FRED_BASE_URL}${source.seriesId}`,
-        cadenceMinutes: source.cadenceMinutes,
-      });
       const csv = await fetchFredSeries(source.seriesId);
-      const observations = parseFredCsv(csv, source.sourceId, source.confidence);
+      const observations = parseFredCsv(csv, source.sourceId, source.confidence, 1);
       let inserted = 0;
       for (const observation of observations) {
         const result = await insertObservation(env.DB, observation);
