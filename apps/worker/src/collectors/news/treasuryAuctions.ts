@@ -33,7 +33,7 @@ interface FiscalDataAuctionRow {
 }
 
 export async function fetchTreasuryAuctions(): Promise<string> {
-  return fetchFeedText(treasuryAuctionsConfig.feedUrl);
+  return fetchFeedText(treasuryAuctionsConfig.feedUrl, 20_000);
 }
 
 export function parseTreasuryAuctions(payload: string, fetchedAt = new Date().toISOString()): NewsItemInput[] {
