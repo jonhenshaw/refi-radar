@@ -122,23 +122,51 @@ export async function upsertSource(db: D1Database, source: SourceInput): Promise
 }
 
 export async function insertObservation(db: D1Database, observation: ObservationInput): Promise<{ inserted: boolean }> {
+  const rawJson = observation.raw === undefined ? null : JSON.stringify(observation.raw);
+  const binds = [
+    observation.sourceId,
+    observation.observedAt,
+    observation.fetchedAt,
+    observation.rate,
+    observation.changeBps ?? null,
+    observation.confidence,
+    rawJson,
+  ] as const;
+
   const result = await db
     .prepare(
       `INSERT OR IGNORE INTO rate_observations (source_id, observed_at, fetched_at, rate, change_bps, confidence, raw_json)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
+    .bind(...binds)
+    .run();
+
+  const inserted = Number(result.meta?.changes ?? 0) > 0;
+  if (inserted) return { inserted: true };
+
+  await db
+    .prepare(
+      `UPDATE rate_observations
+       SET fetched_at = ?,
+           change_bps = ?,
+           confidence = ?,
+           raw_json = ?
+       WHERE source_id = ?
+         AND observed_at = ?
+         AND rate = ?`,
+    )
     .bind(
-      observation.sourceId,
-      observation.observedAt,
       observation.fetchedAt,
-      observation.rate,
       observation.changeBps ?? null,
       observation.confidence,
-      observation.raw === undefined ? null : JSON.stringify(observation.raw),
+      rawJson,
+      observation.sourceId,
+      observation.observedAt,
+      observation.rate,
     )
     .run();
 
-  return { inserted: Number(result.meta?.changes ?? 0) > 0 };
+  return { inserted: false };
 }
 
 export async function getLatestObservations(db: D1Database): Promise<RateObservation[]> {

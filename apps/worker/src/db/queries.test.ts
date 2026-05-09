@@ -29,6 +29,16 @@ class MockD1 {
             }
             return { success: true, meta: { changes: duplicate ? 0 : 1 } };
           }
+          if (sql.includes('UPDATE rate_observations')) {
+            const row = this.observations.find((candidate) => candidate.source_id === params[4] && candidate.observed_at === params[5] && candidate.rate === params[6]);
+            if (row) {
+              row.fetched_at = params[0];
+              row.change_bps = params[1];
+              row.confidence = params[2];
+              row.raw_json = params[3];
+            }
+            return { success: true, meta: { changes: row ? 1 : 0 } };
+          }
           if (sql.includes('INSERT OR IGNORE INTO news_items')) {
             return { success: true, meta: { changes: params.length / 8 } };
           }
@@ -59,11 +69,13 @@ describe('D1 query helpers', () => {
 
     await upsertSource(db, { id: 'fred_mortgage30us', name: 'Freddie Mac PMMS 30Y', kind: 'weekly_survey', url: 'https://example.com', cadenceMinutes: 1440 });
     const first = await insertObservation(db, { sourceId: 'fred_mortgage30us', observedAt: '2026-04-30', fetchedAt: '2026-05-01T00:00:00.000Z', rate: 6.3, confidence: 'weekly_survey' });
-    const duplicate = await insertObservation(db, { sourceId: 'fred_mortgage30us', observedAt: '2026-04-30', fetchedAt: '2026-05-01T00:00:00.000Z', rate: 6.3, confidence: 'weekly_survey' });
+    const duplicate = await insertObservation(db, { sourceId: 'fred_mortgage30us', observedAt: '2026-04-30', fetchedAt: '2026-05-01T00:15:00.000Z', rate: 6.3, confidence: 'weekly_survey' });
 
     expect(first.inserted).toBe(true);
     expect(duplicate.inserted).toBe(false);
-    await expect(getLatestObservations(db)).resolves.toHaveLength(1);
+    await expect(getLatestObservations(db)).resolves.toEqual([
+      expect.objectContaining({ sourceId: 'fred_mortgage30us', observedAt: '2026-04-30', fetchedAt: '2026-05-01T00:15:00.000Z', rate: 6.3 }),
+    ]);
     await expect(getSeries(db, 'fred_mortgage30us', 'MAX')).resolves.toEqual([
       expect.objectContaining({ sourceId: 'fred_mortgage30us', observedAt: '2026-04-30', rate: 6.3 }),
     ]);
