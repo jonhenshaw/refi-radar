@@ -1,7 +1,7 @@
 import type { NewsItemInput } from '../../db/queries';
 import { fetchFeedText, parseRssItems, rssItemsToNewsItems, type RssCollectorConfig } from './util';
 
-const FEED_URL = 'https://www.mortgagenewsdaily.com/rss/news.xml';
+const FEED_URL = 'https://www.mortgagenewsdaily.com/rss/news';
 
 export const mndCommentaryConfig: RssCollectorConfig = {
   source: {
