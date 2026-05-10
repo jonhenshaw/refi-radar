@@ -28,6 +28,7 @@ import { ToastProvider, useToast } from './components/toast/ToastProvider';
 import { useAlertEvaluator } from './hooks/useAlertEvaluator';
 import { useAlertEvents } from './hooks/useAlertEvents';
 import { useAlertRules } from './hooks/useAlertRules';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import {
   getCompareSeries,
   getLatest,
@@ -71,6 +72,7 @@ function AppContent() {
   const [targetRate, setTargetRate] = useState<number>(DEFAULT_TARGET_RATE);
 
   const { rules, addRule, toggleRule, deleteRule, replaceRules } = useAlertRules();
+  const pushNotifications = usePushNotifications(rules);
   const { events, appendEvents } = useAlertEvents();
   const { pushToast } = useToast();
 
@@ -197,6 +199,10 @@ function AppContent() {
         lastFetchedAt={primary?.fetchedAt}
         targetRate={targetRate}
         onTargetRateChange={setTargetRate}
+        notificationStatus={pushNotifications.status}
+        notificationMessage={pushNotifications.message}
+        onEnableNotifications={pushNotifications.enable}
+        onSendTestNotification={pushNotifications.sendTest}
       />
 
       {latestError ? (

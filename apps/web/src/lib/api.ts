@@ -2,6 +2,7 @@ import type {
   CalendarEvent,
   CalendarEventImportance,
   LatestSnapshot,
+  LocalAlertRule,
   NewsCategory,
   NewsItem,
   NewsSourceId,
@@ -135,5 +136,33 @@ export function calculateRefi(input: RefiInput): Promise<RefiResult> {
       newRate: input.newRate,
       closingCosts: input.closingCosts,
     }),
+  });
+}
+
+export interface PushRegistrationInput {
+  userId: string;
+  deviceId: string;
+  token: string;
+  platform: 'ios';
+}
+
+export function registerPushToken(input: PushRegistrationInput): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/api/notifications/register', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function syncNotificationRules(userId: string, rules: LocalAlertRule[]): Promise<{ ok: boolean; synced: number }> {
+  return request<{ ok: boolean; synced: number }>('/api/notifications/rules', {
+    method: 'PUT',
+    body: JSON.stringify({ userId, rules }),
+  });
+}
+
+export function sendTestNotification(userId: string): Promise<{ ok: boolean; sent: number; skipped: number }> {
+  return request<{ ok: boolean; sent: number; skipped: number }>('/api/notifications/test', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
   });
 }
