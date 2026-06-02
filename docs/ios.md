@@ -22,6 +22,28 @@ In Xcode:
 4. Ensure **Signing & Capabilities → Push Notifications** is enabled.
 5. Run on a physical iPhone. APNs registration does not work on a plain simulator flow.
 
+## Ad Hoc package
+
+Ad Hoc distribution requires an Apple Distribution certificate and an Ad Hoc provisioning profile for `com.jonhenshaw.refiradar` that includes the target iPhone UDID. Xcode 17 names this export method `release-testing`; older tooling may call the same path `ad-hoc`.
+
+```bash
+pnpm ios:sync
+xcodebuild -project ios/App/App.xcodeproj \
+  -scheme App \
+  -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath /tmp/refi-radar-adhoc/App.xcarchive \
+  -allowProvisioningUpdates \
+  archive
+xcodebuild -exportArchive \
+  -archivePath /tmp/refi-radar-adhoc/App.xcarchive \
+  -exportPath /tmp/refi-radar-adhoc/export \
+  -exportOptionsPlist ios/App/ExportOptions-AdHoc.plist \
+  -allowProvisioningUpdates
+```
+
+Release/Ad Hoc builds use the production APNs entitlement, so set `APNS_USE_SANDBOX=false` for Worker notifications when testing an Ad Hoc IPA.
+
 ## Worker / APNs secrets
 
 Create an Apple Developer APNs Auth Key (`.p8`) and set Worker secrets:
