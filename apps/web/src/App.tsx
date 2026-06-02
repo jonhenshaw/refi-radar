@@ -74,6 +74,17 @@ function AppContent() {
   const [targetRate, setTargetRate] = useState<number>(DEFAULT_TARGET_RATE);
 
   const { rules, addRule, toggleRule, deleteRule, replaceRules } = useAlertRules();
+  const { events, appendEvents } = useAlertEvents();
+  const { pushToast } = useToast();
+
+  const handlePushAlert = useCallback(
+    (event: AlertEvent) => {
+      appendEvents([event]);
+      pushToast({ title: 'Alert triggered', body: event.message, tone: 'alert' });
+    },
+    [appendEvents, pushToast],
+  );
+
   const pushNotifications = usePushNotifications(
     rules,
     refiInput
@@ -85,9 +96,8 @@ function AppContent() {
           targetRate,
         }
       : undefined,
+    handlePushAlert,
   );
-  const { events, appendEvents } = useAlertEvents();
-  const { pushToast } = useToast();
 
   const loadLatest = useCallback(async () => {
     try {

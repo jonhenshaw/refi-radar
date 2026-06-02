@@ -223,7 +223,14 @@ export async function dispatchDueRateAlerts(env: Env): Promise<{ usersChecked: n
       const delivery = await sendUserNotification(env, user.user_id, {
         title: 'Refi Radar alert',
         body: event.message,
-        data: { type: 'alert', eventId: event.id, ruleId: event.ruleId, sourceId: event.sourceId },
+        data: {
+          type: 'alert',
+          eventId: event.id,
+          ruleId: event.ruleId,
+          sourceId: event.sourceId,
+          ruleType: event.ruleSnapshot.type,
+          threshold: String(event.ruleSnapshot.threshold),
+        },
       });
       sent += delivery.sent;
       skipped += delivery.skipped;
