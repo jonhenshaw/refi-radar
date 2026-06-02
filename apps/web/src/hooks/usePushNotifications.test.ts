@@ -1,7 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PushNotificationSchema } from '@capacitor/push-notifications';
 
-import { notificationToAlertEvent } from './usePushNotifications';
+import { getStoredPushEnabled, notificationToAlertEvent, setStoredPushEnabled } from './usePushNotifications';
+
+function stubStorage() {
+  const values = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+  });
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('notificationToAlertEvent', () => {
   it('maps APNs alert payloads into local alert events', () => {
@@ -38,5 +52,15 @@ describe('notificationToAlertEvent', () => {
       title: 'Refi Radar notifications are on',
       data: { type: 'test' },
     } satisfies PushNotificationSchema)).toBeNull();
+  });
+
+  it('persists whether native push has been enabled', () => {
+    stubStorage();
+
+    expect(getStoredPushEnabled()).toBe(false);
+    setStoredPushEnabled(true);
+    expect(getStoredPushEnabled()).toBe(true);
+    setStoredPushEnabled(false);
+    expect(getStoredPushEnabled()).toBe(false);
   });
 });

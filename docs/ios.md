@@ -43,7 +43,8 @@ cd apps/worker
 pnpm exec wrangler d1 execute refi-radar-prod --remote --file src/db/schema.sql
 ```
 
-The app registers device tokens at `/api/notifications/register`, syncs local rate alert rules to `/api/notifications/rules`, and the scheduled collector dispatches APNs notifications when server-synced rate rules trigger.
+The app registers device tokens at `/api/notifications/register`, remembers when native push has been enabled, syncs local rate alert rules to `/api/notifications/rules`, and restores APNs registration/listeners on later launches when iOS permission is still granted.
+The scheduled collector dispatches APNs notifications when server-synced rate rules trigger.
 Foreground and tapped APNs alerts are bridged back into the React app so they appear in the same toast and recent-alert feed as locally evaluated web alerts. Capacitor is configured to present foreground pushes with badge, sound, and alert.
 
 Manual dispatch test:

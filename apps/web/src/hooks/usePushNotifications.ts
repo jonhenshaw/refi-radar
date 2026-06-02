@@ -6,6 +6,7 @@ import { registerPushToken, sendTestNotification, syncNotificationRules, type No
 
 const USER_ID_KEY = 'refi-radar:user-id';
 const DEVICE_ID_KEY = 'refi-radar:device-id';
+const PUSH_ENABLED_KEY = 'refi-radar:push-enabled';
 const RATE_SOURCE_IDS = new Set<RateSourceId>([
   'mnd_30y_fixed',
   'fred_mortgage30us',
@@ -47,6 +48,14 @@ function getStoredId(key: string, prefix: string): string {
 
 export function getNotificationUserId(): string {
   return getStoredId(USER_ID_KEY, 'user');
+}
+
+export function getStoredPushEnabled(): boolean {
+  return safeStorage()?.getItem(PUSH_ENABLED_KEY) === 'true';
+}
+
+export function setStoredPushEnabled(enabled: boolean): void {
+  safeStorage()?.setItem(PUSH_ENABLED_KEY, enabled ? 'true' : 'false');
 }
 
 function isRateSourceId(value: unknown): value is RateSourceId {
@@ -106,16 +115,22 @@ export function usePushNotifications(
     });
   }, [syncRules]);
 
-  const enable = useCallback(async () => {
+  const setupNativePush = useCallback(async (requestPrompt: boolean) => {
     if (!native) return;
     setStatus('requesting');
     setMessage(null);
     try {
       let permission = await PushNotifications.checkPermissions();
-      if (permission.receive === 'prompt') {
+      if (permission.receive === 'prompt' && requestPrompt) {
         permission = await PushNotifications.requestPermissions();
       }
+      if (permission.receive === 'prompt') {
+        setStoredPushEnabled(false);
+        setStatus('idle');
+        return;
+      }
       if (permission.receive !== 'granted') {
+        setStoredPushEnabled(false);
         setStatus('denied');
         setMessage('Notification permission was denied in iOS settings.');
         return;
@@ -125,6 +140,7 @@ export function usePushNotifications(
       await PushNotifications.addListener('registration', async (token: Token) => {
         await registerPushToken({ userId, deviceId, token: token.value, platform: 'ios' });
         await syncNotificationRules(userId, rules, loanProfile);
+        setStoredPushEnabled(true);
         setStatus('enabled');
         setMessage('iOS push notifications are enabled.');
       });
@@ -148,6 +164,15 @@ export function usePushNotifications(
       setMessage(error instanceof Error ? error.message : 'Failed to enable notifications.');
     }
   }, [deviceId, loanProfile, native, onAlertNotification, rules, userId]);
+
+  useEffect(() => {
+    if (!native || status !== 'idle' || !getStoredPushEnabled()) return;
+    void setupNativePush(false);
+  }, [native, setupNativePush, status]);
+
+  const enable = useCallback(async () => {
+    await setupNativePush(true);
+  }, [setupNativePush]);
 
   const sendTest = useCallback(async () => {
     if (!native || status !== 'enabled') return;
