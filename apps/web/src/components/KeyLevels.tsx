@@ -6,7 +6,10 @@ interface Props {
 const LEVELS = [5.5, 5.75, 6.0, 6.25, 6.5, 6.75, 7.0, 7.25];
 
 export function KeyLevels({ rate, targetRate }: Props) {
-  const sorted = [...LEVELS, targetRate].sort((a, b) => a - b);
+  const sorted = [
+    ...LEVELS.filter((level) => Math.abs(level - targetRate) >= 0.005),
+    targetRate,
+  ].sort((a, b) => a - b);
   const above = typeof rate === 'number' ? sorted.find((l) => l > rate) : undefined;
   const below = typeof rate === 'number' ? [...sorted].reverse().find((l) => l < rate) : undefined;
 
@@ -21,7 +24,7 @@ export function KeyLevels({ rate, targetRate }: Props) {
       </header>
 
       <ul className="grid gap-px bg-line">
-        {sorted.map((level) => {
+        {sorted.map((level, index) => {
           const isTarget = level === targetRate;
           const isCurrent = typeof rate === 'number' && Math.abs(rate - level) < 0.005;
           const isAbove = above === level;
@@ -31,7 +34,7 @@ export function KeyLevels({ rate, targetRate }: Props) {
 
           return (
             <li
-              key={`${level}-${isTarget}`}
+              key={`${level}-${isTarget ? 'target' : 'level'}-${index}`}
               className={`flex items-center gap-3 px-3 py-1.5 ${
                 isAbove || isBelow ? 'bg-surface-2' : 'bg-surface-1'
               }`}

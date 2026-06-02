@@ -47,7 +47,16 @@ interface ApiCalendarResponse {
   events: CalendarEvent[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
+const NATIVE_API_BASE = 'https://refi-radar-worker.equine-abyss5k.workers.dev';
+
+function defaultApiBase(): string {
+  if (typeof window !== 'undefined' && window.location.protocol === 'capacitor:') {
+    return NATIVE_API_BASE;
+  }
+  return '';
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? defaultApiBase();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -146,6 +155,14 @@ export interface PushRegistrationInput {
   platform: 'ios';
 }
 
+export interface NotificationLoanProfileInput {
+  currentBalance: number;
+  currentRate: number;
+  remainingMonths: number;
+  closingCosts: number;
+  targetRate?: number;
+}
+
 export function registerPushToken(input: PushRegistrationInput): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>('/api/notifications/register', {
     method: 'POST',
@@ -153,10 +170,14 @@ export function registerPushToken(input: PushRegistrationInput): Promise<{ ok: b
   });
 }
 
-export function syncNotificationRules(userId: string, rules: LocalAlertRule[]): Promise<{ ok: boolean; synced: number }> {
+export function syncNotificationRules(
+  userId: string,
+  rules: LocalAlertRule[],
+  loanProfile?: NotificationLoanProfileInput,
+): Promise<{ ok: boolean; synced: number }> {
   return request<{ ok: boolean; synced: number }>('/api/notifications/rules', {
     method: 'PUT',
-    body: JSON.stringify({ userId, rules }),
+    body: JSON.stringify({ userId, rules, loanProfile }),
   });
 }
 

@@ -6,8 +6,10 @@ import {
   registerPushToken,
   replaceUserAlertRules,
   sendTestNotification,
+  upsertUserLoanProfile,
   unregisterPushToken,
   type PushPlatform,
+  type SyncedLoanProfile,
 } from '../services/notifications';
 
 export const notificationRoutes = new Hono<{ Bindings: Env }>();
@@ -41,12 +43,16 @@ notificationRoutes.delete('/notifications/register', async (c) => {
 
 notificationRoutes.put('/notifications/rules', async (c) => {
   if (!c.env.DB) return c.json({ error: 'database not configured' }, 503);
-  const body = await c.req.json<Partial<{ userId: string; rules: LocalAlertRule[] }>>();
+  const body = await c.req.json<Partial<{ userId: string; rules: LocalAlertRule[]; loanProfile: SyncedLoanProfile }>>();
   if (!body.userId || !Array.isArray(body.rules)) {
     return c.json({ error: 'userId and rules[] are required' }, 400);
   }
+  if (body.loanProfile !== undefined && !isValidLoanProfile(body.loanProfile)) {
+    return c.json({ error: 'invalid_loan_profile' }, 400);
+  }
 
   await replaceUserAlertRules(c.env.DB, body.userId, body.rules);
+  if (body.loanProfile) await upsertUserLoanProfile(c.env.DB, body.userId, body.loanProfile);
   return c.json({ ok: true, synced: body.rules.length });
 });
 
@@ -65,3 +71,22 @@ notificationRoutes.post('/notifications/dispatch', async (c) => {
   const result = await dispatchDueRateAlerts(c.env);
   return c.json({ ok: true, ...result });
 });
+
+function isValidLoanProfile(value: SyncedLoanProfile): value is SyncedLoanProfile {
+  return (
+    isPositive(value.currentBalance) &&
+    isNonNegative(value.currentRate) &&
+    Number.isInteger(value.remainingMonths) &&
+    value.remainingMonths > 0 &&
+    isNonNegative(value.closingCosts) &&
+    (value.targetRate === undefined || isNonNegative(value.targetRate))
+  );
+}
+
+function isPositive(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+function isNonNegative(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications, type Token } from '@capacitor/push-notifications';
 import type { LocalAlertRule } from '@refi-radar/shared';
-import { registerPushToken, sendTestNotification, syncNotificationRules } from '../lib/api';
+import { registerPushToken, sendTestNotification, syncNotificationRules, type NotificationLoanProfileInput } from '../lib/api';
 
 const USER_ID_KEY = 'refi-radar:user-id';
 const DEVICE_ID_KEY = 'refi-radar:device-id';
@@ -32,7 +32,7 @@ export function getNotificationUserId(): string {
   return getStoredId(USER_ID_KEY, 'user');
 }
 
-export function usePushNotifications(rules: LocalAlertRule[]) {
+export function usePushNotifications(rules: LocalAlertRule[], loanProfile?: NotificationLoanProfileInput) {
   const native = Capacitor.isNativePlatform();
   const [status, setStatus] = useState<PushStatus>(native ? 'idle' : 'unavailable');
   const [message, setMessage] = useState<string | null>(native ? null : 'Push notifications are available in the iOS app.');
@@ -41,8 +41,8 @@ export function usePushNotifications(rules: LocalAlertRule[]) {
 
   const syncRules = useCallback(async () => {
     if (!native || status !== 'enabled') return;
-    await syncNotificationRules(userId, rules);
-  }, [native, rules, status, userId]);
+    await syncNotificationRules(userId, rules, loanProfile);
+  }, [loanProfile, native, rules, status, userId]);
 
   useEffect(() => {
     void syncRules().catch((error) => {
@@ -68,7 +68,7 @@ export function usePushNotifications(rules: LocalAlertRule[]) {
       await PushNotifications.removeAllListeners();
       await PushNotifications.addListener('registration', async (token: Token) => {
         await registerPushToken({ userId, deviceId, token: token.value, platform: 'ios' });
-        await syncNotificationRules(userId, rules);
+        await syncNotificationRules(userId, rules, loanProfile);
         setStatus('enabled');
         setMessage('iOS push notifications are enabled.');
       });
@@ -83,7 +83,7 @@ export function usePushNotifications(rules: LocalAlertRule[]) {
       setStatus('error');
       setMessage(error instanceof Error ? error.message : 'Failed to enable notifications.');
     }
-  }, [deviceId, native, rules, userId]);
+  }, [deviceId, loanProfile, native, rules, userId]);
 
   const sendTest = useCallback(async () => {
     if (!native || status !== 'enabled') return;

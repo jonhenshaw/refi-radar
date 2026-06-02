@@ -117,6 +117,19 @@ describe('evaluateRules', () => {
     expect(fired[0].observedRate).toBe(18);
   });
 
+  it('uses per-source break-even months when supplied', () => {
+    const rule = makeRule({ type: 'break_even_below_months', sourceId: 'fred_mortgage30us', threshold: 24 });
+    const { fired } = evaluateRules([rule], {
+      snapshot: makeSnapshot(),
+      refiBreakEvenMonths: 36,
+      refiBreakEvenMonthsBySource: { fred_mortgage30us: 18 },
+      now: NOW,
+    });
+    expect(fired).toHaveLength(1);
+    expect(fired[0].sourceId).toBe('fred_mortgage30us');
+    expect(fired[0].observedRate).toBe(18);
+  });
+
   it('does not fire break_even when result is missing or non-finite', () => {
     const rule = makeRule({ type: 'break_even_below_months', threshold: 24 });
     const { fired } = evaluateRules([rule], { snapshot: makeSnapshot(), now: NOW });

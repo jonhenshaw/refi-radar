@@ -2,6 +2,10 @@
 
 Refi Radar ships as a Capacitor iOS app that wraps the existing Vite/React frontend and uses native APNs push notifications.
 
+The web frontend is the canonical UI. In a Capacitor WebView, API calls default to
+`https://refi-radar-worker.equine-abyss5k.workers.dev` instead of relative `/api`
+paths so the native app can reach the Worker from `capacitor://localhost`.
+
 ## Local workflow
 
 ```bash

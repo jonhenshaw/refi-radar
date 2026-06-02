@@ -3,8 +3,10 @@ import { AlertTriangle } from 'lucide-react';
 
 import type {
   AlertEvent,
+  LatestSnapshot,
   LocalAlertRule,
   RateSourceId,
+  RefiInput,
   RefiResult,
 } from '@refi-radar/shared';
 
@@ -37,7 +39,6 @@ import {
 } from './lib/api';
 import { demoLatest, makeDemoSeries } from './lib/demoData';
 import { SOURCE_LABELS, SOURCE_ORDER } from './lib/sourceTheme';
-import type { LatestSnapshot } from '@refi-radar/shared';
 
 const DEFAULT_TARGET_RATE = 6.25;
 const METRICS_SERIES_RANGE: RangeKey = 'MAX';
@@ -69,10 +70,22 @@ function AppContent() {
   const [chartInspectOpen, setChartInspectOpen] = useState(false);
   const [alertsDialogOpen, setAlertsDialogOpen] = useState(false);
   const [refiResult, setRefiResult] = useState<RefiResult | null>(null);
+  const [refiInput, setRefiInput] = useState<RefiInput | null>(null);
   const [targetRate, setTargetRate] = useState<number>(DEFAULT_TARGET_RATE);
 
   const { rules, addRule, toggleRule, deleteRule, replaceRules } = useAlertRules();
-  const pushNotifications = usePushNotifications(rules);
+  const pushNotifications = usePushNotifications(
+    rules,
+    refiInput
+      ? {
+          currentBalance: refiInput.balance,
+          currentRate: refiInput.currentRate,
+          remainingMonths: refiInput.termYears * 12,
+          closingCosts: refiInput.closingCosts,
+          targetRate,
+        }
+      : undefined,
+  );
   const { events, appendEvents } = useAlertEvents();
   const { pushToast } = useToast();
 
@@ -302,6 +315,7 @@ function AppContent() {
           <RefiCalculator
             suggestedRate={primaryRate}
             onResult={setRefiResult}
+            onInputChange={setRefiInput}
             onNewRateChange={setTargetRate}
           />
         </div>

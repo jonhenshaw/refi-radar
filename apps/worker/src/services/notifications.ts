@@ -1,4 +1,14 @@
-import { evaluateRules, type AlertEvent, type AlertRuleType, type LocalAlertRule, type RateSourceId } from '@refi-radar/shared';
+import {
+  breakEvenMonths,
+  evaluateRules,
+  monthlyPayment,
+  monthlySavings,
+  type AlertEvent,
+  type AlertRuleType,
+  type LatestSnapshot,
+  type LocalAlertRule,
+  type RateSourceId,
+} from '@refi-radar/shared';
 import type { Env } from '../env';
 import { getSeries } from '../db/queries';
 import { getLatestSnapshot } from './latest';
@@ -34,10 +44,30 @@ interface PushTokenRow {
   platform: PushPlatform;
 }
 
+export interface SyncedLoanProfile {
+  currentBalance: number;
+  currentRate: number;
+  remainingMonths: number;
+  closingCosts: number;
+  targetRate?: number;
+}
+
+interface LoanProfileRow {
+  current_balance: number | null;
+  current_rate: number | null;
+  remaining_months: number | null;
+  estimated_closing_costs: number | null;
+}
+
 const APNS_PRODUCTION_URL = 'https://api.push.apple.com/3/device/';
 const APNS_SANDBOX_URL = 'https://api.sandbox.push.apple.com/3/device/';
 
-const RATE_RULE_TYPES = new Set<AlertRuleType>(['below_rate', 'above_rate', 'drop_from_recent_high_bps']);
+const PUSH_RULE_TYPES = new Set<AlertRuleType>([
+  'below_rate',
+  'above_rate',
+  'drop_from_recent_high_bps',
+  'break_even_below_months',
+]);
 
 export async function registerPushToken(db: D1Database, input: PushRegistrationInput): Promise<void> {
   await db
@@ -68,10 +98,10 @@ export async function unregisterPushToken(db: D1Database, userId: string, device
 export async function replaceUserAlertRules(db: D1Database, userId: string, rules: LocalAlertRule[]): Promise<void> {
   const existingTriggeredAt = await getExistingRuleTriggerTimes(db, userId);
   await db.prepare('DELETE FROM alert_rules WHERE user_id = ?').bind(userId).run();
-  const rateRules = rules.filter((rule) => RATE_RULE_TYPES.has(rule.type));
-  if (rateRules.length === 0) return;
+  const pushRules = rules.filter((rule) => PUSH_RULE_TYPES.has(rule.type));
+  if (pushRules.length === 0) return;
 
-  for (const rule of rateRules) {
+  for (const rule of pushRules) {
     await db
       .prepare(
         `INSERT INTO alert_rules (
@@ -93,6 +123,33 @@ export async function replaceUserAlertRules(db: D1Database, userId: string, rule
       )
       .run();
   }
+}
+
+export async function upsertUserLoanProfile(db: D1Database, userId: string, profile: SyncedLoanProfile): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO loan_profiles (
+        id, user_id, current_balance, current_rate, remaining_months,
+        estimated_closing_costs, target_rate, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(id) DO UPDATE SET
+        current_balance = excluded.current_balance,
+        current_rate = excluded.current_rate,
+        remaining_months = excluded.remaining_months,
+        estimated_closing_costs = excluded.estimated_closing_costs,
+        target_rate = excluded.target_rate,
+        updated_at = CURRENT_TIMESTAMP`,
+    )
+    .bind(
+      userId,
+      userId,
+      profile.currentBalance,
+      profile.currentRate,
+      profile.remainingMonths,
+      profile.closingCosts,
+      profile.targetRate ?? null,
+    )
+    .run();
 }
 
 export async function sendTestNotification(env: Env, userId: string): Promise<{ sent: number; skipped: number }> {
@@ -147,7 +204,16 @@ export async function dispatchDueRateAlerts(env: Env): Promise<{ usersChecked: n
       }
     }
     const seriesBySource = Object.fromEntries(Array.from(seriesCache.entries()));
-    const evaluation = evaluateRules(rules, { snapshot, seriesBySource, now: new Date().toISOString() });
+    const refiBreakEvenMonthsBySource = rules.some((rule) => rule.type === 'break_even_below_months')
+      ? await getUserBreakEvenMonthsBySource(env.DB, user.user_id, snapshot)
+      : undefined;
+    const now = new Date().toISOString();
+    const evaluation = evaluateRules(rules, {
+      snapshot,
+      seriesBySource,
+      refiBreakEvenMonthsBySource,
+      now,
+    });
     const fired = evaluation.fired;
     if (fired.length === 0) continue;
 
@@ -184,7 +250,7 @@ async function getUserAlertRules(db: D1Database, userId: string): Promise<LocalA
 }
 
 function rowToLocalAlertRule(row: AlertRuleRow): LocalAlertRule[] {
-  if (!RATE_RULE_TYPES.has(row.rule_type as AlertRuleType)) return [];
+  if (!PUSH_RULE_TYPES.has(row.rule_type as AlertRuleType)) return [];
   const type = row.rule_type as AlertRuleType;
   const threshold = type === 'drop_from_recent_high_bps' ? row.threshold_bps : row.threshold;
   if (typeof threshold !== 'number') return [];
@@ -198,6 +264,56 @@ function rowToLocalAlertRule(row: AlertRuleRow): LocalAlertRule[] {
     lastTriggeredAt: row.last_triggered_at ?? undefined,
     createdAt: row.created_at,
   }];
+}
+
+async function getUserBreakEvenMonthsBySource(
+  db: D1Database,
+  userId: string,
+  snapshot: LatestSnapshot,
+): Promise<Partial<Record<RateSourceId, number | null>> | undefined> {
+  const profile = await getUserLoanProfile(db, userId);
+  if (!profile) return undefined;
+
+  const currentPayment = monthlyPayment(profile.currentBalance, profile.currentRate, profile.remainingMonths);
+  const output: Partial<Record<RateSourceId, number | null>> = {};
+  for (const observation of snapshot.sources) {
+    const newPayment = monthlyPayment(profile.currentBalance, observation.rate, profile.remainingMonths);
+    const savings = monthlySavings(currentPayment, newPayment);
+    const months = breakEvenMonths(profile.closingCosts, savings);
+    output[observation.sourceId] = Number.isFinite(months) ? months : null;
+  }
+  return output;
+}
+
+async function getUserLoanProfile(db: D1Database, userId: string): Promise<SyncedLoanProfile | null> {
+  const { results } = await db
+    .prepare(
+      `SELECT current_balance, current_rate, remaining_months, estimated_closing_costs
+       FROM loan_profiles
+       WHERE user_id = ?
+       ORDER BY updated_at DESC
+       LIMIT 1`,
+    )
+    .bind(userId)
+    .all<LoanProfileRow>();
+
+  const row = results?.[0];
+  if (!row) return null;
+  if (
+    typeof row.current_balance !== 'number' ||
+    typeof row.current_rate !== 'number' ||
+    typeof row.remaining_months !== 'number' ||
+    typeof row.estimated_closing_costs !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    currentBalance: row.current_balance,
+    currentRate: row.current_rate,
+    remainingMonths: row.remaining_months,
+    closingCosts: row.estimated_closing_costs,
+  };
 }
 
 async function updateTriggeredRules(db: D1Database, userId: string, rules: LocalAlertRule[]): Promise<void> {

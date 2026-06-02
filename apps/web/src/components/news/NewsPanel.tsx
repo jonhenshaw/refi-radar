@@ -152,7 +152,7 @@ export function NewsPanel({ news, calendar, loading = false }: Props) {
       ) : (
         <ul className="grid gap-0.5">
           {filteredNews.map((item) => (
-            <NewsRow key={`${item.sourceId}-${item.url}`} item={item} />
+            <NewsRow key={`${item.sourceId}-${item.url}-${item.publishedAt}`} item={item} />
           ))}
         </ul>
       )}
