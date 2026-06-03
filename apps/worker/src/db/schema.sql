@@ -50,6 +50,22 @@ CREATE TABLE IF NOT EXISTS alert_rules (
   FOREIGN KEY (source_id) REFERENCES sources(id)
 );
 
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL DEFAULT 'local',
+  device_id TEXT NOT NULL,
+  platform TEXT NOT NULL,
+  token TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(device_id, platform),
+  UNIQUE(token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user_enabled
+ON push_tokens(user_id, enabled);
+
 CREATE TABLE IF NOT EXISTS alert_events (
   id TEXT PRIMARY KEY,
   rule_id TEXT NOT NULL,

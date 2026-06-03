@@ -3,8 +3,10 @@ import { AlertTriangle } from 'lucide-react';
 
 import type {
   AlertEvent,
+  LatestSnapshot,
   LocalAlertRule,
   RateSourceId,
+  RefiInput,
   RefiResult,
 } from '@refi-radar/shared';
 
@@ -28,6 +30,7 @@ import { ToastProvider, useToast } from './components/toast/ToastProvider';
 import { useAlertEvaluator } from './hooks/useAlertEvaluator';
 import { useAlertEvents } from './hooks/useAlertEvents';
 import { useAlertRules } from './hooks/useAlertRules';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import {
   getCompareSeries,
   getLatest,
@@ -36,7 +39,6 @@ import {
 } from './lib/api';
 import { demoLatest, makeDemoSeries } from './lib/demoData';
 import { SOURCE_LABELS, SOURCE_ORDER } from './lib/sourceTheme';
-import type { LatestSnapshot } from '@refi-radar/shared';
 
 const DEFAULT_TARGET_RATE = 6.25;
 const METRICS_SERIES_RANGE: RangeKey = 'MAX';
@@ -68,11 +70,34 @@ function AppContent() {
   const [chartInspectOpen, setChartInspectOpen] = useState(false);
   const [alertsDialogOpen, setAlertsDialogOpen] = useState(false);
   const [refiResult, setRefiResult] = useState<RefiResult | null>(null);
+  const [refiInput, setRefiInput] = useState<RefiInput | null>(null);
   const [targetRate, setTargetRate] = useState<number>(DEFAULT_TARGET_RATE);
 
   const { rules, addRule, toggleRule, deleteRule, replaceRules } = useAlertRules();
   const { events, appendEvents } = useAlertEvents();
   const { pushToast } = useToast();
+
+  const handlePushAlert = useCallback(
+    (event: AlertEvent) => {
+      appendEvents([event]);
+      pushToast({ title: 'Alert triggered', body: event.message, tone: 'alert' });
+    },
+    [appendEvents, pushToast],
+  );
+
+  const pushNotifications = usePushNotifications(
+    rules,
+    refiInput
+      ? {
+          currentBalance: refiInput.balance,
+          currentRate: refiInput.currentRate,
+          remainingMonths: refiInput.termYears * 12,
+          closingCosts: refiInput.closingCosts,
+          targetRate,
+        }
+      : undefined,
+    handlePushAlert,
+  );
 
   const loadLatest = useCallback(async () => {
     try {
@@ -197,6 +222,10 @@ function AppContent() {
         lastFetchedAt={primary?.fetchedAt}
         targetRate={targetRate}
         onTargetRateChange={setTargetRate}
+        notificationStatus={pushNotifications.status}
+        notificationMessage={pushNotifications.message}
+        onEnableNotifications={pushNotifications.enable}
+        onSendTestNotification={pushNotifications.sendTest}
       />
 
       {latestError ? (
@@ -296,6 +325,7 @@ function AppContent() {
           <RefiCalculator
             suggestedRate={primaryRate}
             onResult={setRefiResult}
+            onInputChange={setRefiInput}
             onNewRateChange={setTargetRate}
           />
         </div>

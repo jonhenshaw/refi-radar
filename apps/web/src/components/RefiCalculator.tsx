@@ -98,9 +98,10 @@ interface RefiCalculatorProps {
   suggestedRate?: number;
   onResult?: (result: RefiResult) => void;
   onNewRateChange?: (rate: number) => void;
+  onInputChange?: (input: RefiInput) => void;
 }
 
-export function RefiCalculator({ suggestedRate = 6.35, onResult, onNewRateChange }: RefiCalculatorProps) {
+export function RefiCalculator({ suggestedRate = 6.35, onResult, onNewRateChange, onInputChange }: RefiCalculatorProps) {
   const [balance, setBalance] = useState('425000');
   const [currentRate, setCurrentRate] = useState('7.15');
   const [newRate, setNewRate] = useState(String(suggestedRate.toFixed(2)));
@@ -146,6 +147,17 @@ export function RefiCalculator({ suggestedRate = 6.35, onResult, onNewRateChange
   useEffect(() => {
     onResult?.(result);
   }, [onResult, result]);
+
+  useEffect(() => {
+    if (hasError) return;
+    onInputChange?.({
+      balance: numericValue(balance),
+      currentRate: numericValue(currentRate),
+      newRate: numericValue(newRate),
+      termYears: numericValue(termYears),
+      closingCosts: numericValue(closingCosts),
+    });
+  }, [hasError, balance, closingCosts, currentRate, newRate, onInputChange, termYears]);
 
   return (
     <section className="flex flex-col gap-4 border border-line rounded-md bg-surface-1/40 p-4">

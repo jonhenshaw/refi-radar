@@ -75,6 +75,7 @@
   html { background: var(--color-bg); color-scheme: dark; }
   body {
     min-height: 100vh;
+    min-height: 100dvh;
     margin: 0;
     background: var(--color-bg);
     color: var(--color-fg);
@@ -84,6 +85,14 @@
     text-rendering: geometricPrecision;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    background: var(--color-bg);
   }
 
   button, input, select, textarea {

@@ -2,6 +2,7 @@ import type {
   CalendarEvent,
   CalendarEventImportance,
   LatestSnapshot,
+  LocalAlertRule,
   NewsCategory,
   NewsItem,
   NewsSourceId,
@@ -46,7 +47,16 @@ interface ApiCalendarResponse {
   events: CalendarEvent[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
+const NATIVE_API_BASE = 'https://refi-radar-worker.equine-abyss5k.workers.dev';
+
+function defaultApiBase(): string {
+  if (typeof window !== 'undefined' && window.location.protocol === 'capacitor:') {
+    return NATIVE_API_BASE;
+  }
+  return '';
+}
+
+const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? defaultApiBase();
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -135,5 +145,45 @@ export function calculateRefi(input: RefiInput): Promise<RefiResult> {
       newRate: input.newRate,
       closingCosts: input.closingCosts,
     }),
+  });
+}
+
+export interface PushRegistrationInput {
+  userId: string;
+  deviceId: string;
+  token: string;
+  platform: 'ios';
+}
+
+export interface NotificationLoanProfileInput {
+  currentBalance: number;
+  currentRate: number;
+  remainingMonths: number;
+  closingCosts: number;
+  targetRate?: number;
+}
+
+export function registerPushToken(input: PushRegistrationInput): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/api/notifications/register', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function syncNotificationRules(
+  userId: string,
+  rules: LocalAlertRule[],
+  loanProfile?: NotificationLoanProfileInput,
+): Promise<{ ok: boolean; synced: number }> {
+  return request<{ ok: boolean; synced: number }>('/api/notifications/rules', {
+    method: 'PUT',
+    body: JSON.stringify({ userId, rules, loanProfile }),
+  });
+}
+
+export function sendTestNotification(userId: string): Promise<{ ok: boolean; sent: number; skipped: number }> {
+  return request<{ ok: boolean; sent: number; skipped: number }>('/api/notifications/test', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
   });
 }

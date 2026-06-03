@@ -41,6 +41,7 @@ export interface EvaluationContext {
   snapshot: LatestSnapshot;
   seriesBySource?: Partial<Record<RateSourceId, SeriesPoint[]>>;
   refiBreakEvenMonths?: number;
+  refiBreakEvenMonthsBySource?: Partial<Record<RateSourceId, number | null>>;
   now: string;
 }
 
@@ -99,7 +100,7 @@ function evaluateRule(
   ctx: EvaluationContext,
 ): { triggered: boolean; observed?: number } {
   if (rule.type === 'break_even_below_months') {
-    const months = ctx.refiBreakEvenMonths;
+    const months = ctx.refiBreakEvenMonthsBySource?.[rule.sourceId] ?? ctx.refiBreakEvenMonths;
     if (typeof months !== 'number' || !Number.isFinite(months)) {
       return { triggered: false };
     }

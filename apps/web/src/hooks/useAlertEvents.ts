@@ -13,7 +13,16 @@ export function useAlertEvents() {
   const appendEvents = useCallback(
     (incoming: AlertEvent[]) => {
       if (incoming.length === 0) return;
-      setEvents((prev) => [...incoming, ...prev].slice(0, MAX_EVENTS));
+      setEvents((prev) => {
+        const seen = new Set<string>();
+        return [...incoming, ...prev]
+          .filter((event) => {
+            if (seen.has(event.id)) return false;
+            seen.add(event.id);
+            return true;
+          })
+          .slice(0, MAX_EVENTS);
+      });
     },
     [setEvents],
   );

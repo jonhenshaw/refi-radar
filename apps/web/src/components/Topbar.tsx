@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { RadioTower } from 'lucide-react';
+import { Bell, RadioTower } from 'lucide-react';
+import type { PushStatus } from '../hooks/usePushNotifications';
 
 interface Props {
   liveCount: number;
@@ -9,6 +10,10 @@ interface Props {
   lastFetchedAt?: string;
   targetRate: number;
   onTargetRateChange: (rate: number) => void;
+  notificationStatus: PushStatus;
+  notificationMessage?: string | null;
+  onEnableNotifications: () => void;
+  onSendTestNotification: () => void;
 }
 
 const FRESH_WITHIN_MS = 120_000;
@@ -43,6 +48,10 @@ export function Topbar({
   lastFetchedAt,
   targetRate,
   onTargetRateChange,
+  notificationStatus,
+  notificationMessage,
+  onEnableNotifications,
+  onSendTestNotification,
 }: Props) {
   const clock = useClock();
   const fresh = useFreshness(lastFetchedAt, usingDemo);
@@ -54,6 +63,15 @@ export function Topbar({
         ? `${liveCount} live`
         : `${liveCount}/${totalCount} live`;
   const tone = usingDemo ? 'warn' : liveCount === totalCount && totalCount > 0 ? 'good' : 'flat';
+  const notificationLabel =
+    notificationStatus === 'enabled'
+      ? 'Push on'
+      : notificationStatus === 'requesting'
+        ? 'Enabling…'
+        : notificationStatus === 'unavailable'
+          ? 'iOS only'
+          : 'Enable push';
+  const notificationTone = notificationStatus === 'enabled' ? 'text-good' : notificationStatus === 'error' || notificationStatus === 'denied' ? 'text-warn' : 'text-fg-muted';
 
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line py-2">
@@ -73,6 +91,16 @@ export function Topbar({
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <button
+          type="button"
+          onClick={notificationStatus === 'enabled' ? onSendTestNotification : onEnableNotifications}
+          disabled={notificationStatus === 'requesting' || notificationStatus === 'unavailable'}
+          title={notificationMessage ?? 'Enable iOS push notifications'}
+          className={`inline-flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-[11px] uppercase tracking-wider transition hover:border-line-strong disabled:cursor-not-allowed disabled:opacity-50 ${notificationTone}`}
+        >
+          <Bell className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">{notificationLabel}</span>
+        </button>
         <label className="flex items-center gap-1.5 text-[11px] text-fg-dim">
           <span className="uppercase tracking-wider">Target</span>
           <span className="flex items-center rounded-sm border border-line px-1.5 focus-within:border-line-strong">
