@@ -4,8 +4,10 @@ import { CONFIDENCE_LABELS, SOURCE_LABELS } from '../lib/sourceTheme';
 
 interface Props {
   intel: RateIntel | undefined;
+  derivedOnClient?: boolean;
   usingDemo?: boolean;
   loading?: boolean;
+  hasSources?: boolean;
 }
 
 function formatValue(field: IntelField): string {
@@ -57,14 +59,24 @@ interface CellConfig {
   sub?: string;
 }
 
-export function IntelStrip({ intel, usingDemo = false, loading = false }: Props) {
+export function IntelStrip({
+  intel,
+  derivedOnClient = false,
+  usingDemo = false,
+  loading = false,
+  hasSources = false,
+}: Props) {
   if (!intel) {
     return (
       <section
         aria-label="Rate intelligence"
         className="border border-line rounded-md bg-surface-1/40 px-3 py-3 text-[12px] text-fg-muted"
       >
-        {loading ? 'Loading rate intelligence…' : 'Rate intelligence unavailable — no snapshot yet.'}
+        {loading
+          ? 'Loading rate intelligence…'
+          : hasSources
+            ? 'Rate intelligence unavailable — history still loading.'
+            : 'Rate intelligence unavailable — waiting for source observations.'}
       </section>
     );
   }
@@ -89,7 +101,11 @@ export function IntelStrip({ intel, usingDemo = false, loading = false }: Props)
       <header className="flex items-center justify-between border-b border-line px-3 py-2">
         <p className="text-[10px] uppercase tracking-[0.18em] text-fg-dim">Rate intel</p>
         <p className="text-[10px] uppercase tracking-wider text-fg-faint">
-          {usingDemo ? 'Sample data' : 'Labeled sources · no invented rates'}
+          {usingDemo
+            ? 'Sample data'
+            : derivedOnClient
+              ? 'Computed in browser from live sources + history'
+              : 'Labeled sources · no invented rates'}
         </p>
       </header>
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 divide-x divide-y sm:divide-y-0 divide-line">

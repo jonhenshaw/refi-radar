@@ -38,7 +38,10 @@ async function optionalCacheOperation<T>(operation: () => Promise<T>, timeoutMs 
 export async function getLatestSnapshot(env: Env): Promise<LatestSnapshot> {
   if (env.REFI_RADAR_CACHE) {
     const cached = await optionalCacheOperation<string | null>(() => env.REFI_RADAR_CACHE!.get('latest-snapshot'));
-    if (cached) return JSON.parse(cached) as LatestSnapshot;
+    if (cached) {
+      const snapshot = JSON.parse(cached) as LatestSnapshot;
+      if (snapshot.intel) return snapshot;
+    }
   }
 
   if (!env.DB) return { sources: [], health: [] };

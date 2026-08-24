@@ -37,6 +37,8 @@ Track 30-year fixed mortgage rates, source freshness, market proxies, and refina
 
 Direct rate fields always carry `sourceId`, `observedAt`, `fetchedAt`, and `confidence`. Derived fields list their `sourceIds` and return `unavailableReason` instead of inventing values when history or observations are missing/stale.
 
+When the Worker has not been deployed with `intel` yet (common on Pages preview branches), the web app computes the same fields in the browser from `/api/latest` sources plus `/api/series/compare` history and labels the strip **Computed in browser from live sources + history**.
+
 ## Initial development commands
 
 These will become active after Task 1 of the implementation plan creates package files:
