@@ -39,6 +39,8 @@ Direct rate fields always carry `sourceId`, `observedAt`, `fetchedAt`, and `conf
 
 When the Worker has not been deployed with `intel` yet (common on Pages preview branches), the web app computes the same fields in the browser from `/api/latest` sources plus `/api/series/compare` history and labels the strip **Computed in browser from live sources + history**.
 
+**Pages preview API:** Cloudflare Pages preview builds set `VITE_API_BASE` at build time (currently `https://refi-radar-worker.equine-abyss5k.workers.dev`). Preview frontends call that production Worker; until it ships `intel`, the client-side fallback above keeps the Rate intel strip honest.
+
 ## Initial development commands
 
 These will become active after Task 1 of the implementation plan creates package files:

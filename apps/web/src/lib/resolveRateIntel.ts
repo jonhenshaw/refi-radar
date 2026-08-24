@@ -20,7 +20,8 @@ export function resolveRateIntel(
     return { intel: undefined, derivedOnClient: false };
   }
 
-  if (snapshot.intel) {
+  // Production Worker may return intel: null until this branch is deployed.
+  if (snapshot.intel != null) {
     return { intel: snapshot.intel, derivedOnClient: false };
   }
 

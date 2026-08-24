@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import type { RateIntel } from '@refi-radar/shared';
 import { buildRateIntel } from '@refi-radar/shared';
@@ -49,12 +49,17 @@ function makeIntel(): RateIntel {
 }
 
 describe('IntelStrip', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('renders labeled intel values with source metadata', () => {
     render(<IntelStrip intel={makeIntel()} />);
+    const mobile = within(screen.getByTestId('intel-strip-mobile'));
     expect(screen.getByText('Rate intel')).toBeInTheDocument();
-    expect(screen.getByText('6.50%')).toBeInTheDocument();
-    expect(screen.getByText('220 bps')).toBeInTheDocument();
-    expect(screen.getAllByText(/market estimate/i).length).toBeGreaterThan(0);
+    expect(mobile.getByText('6.50%')).toBeInTheDocument();
+    expect(mobile.getByText('220 bps')).toBeInTheDocument();
+    expect(mobile.getAllByText(/market estimate/i).length).toBeGreaterThan(0);
   });
 
   it('shows unavailable messaging instead of inventing values', () => {
@@ -69,5 +74,12 @@ describe('IntelStrip', () => {
     );
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/No observations collected yet/i).length).toBeGreaterThan(0);
+  });
+
+  it('uses mobile section labels for stacked layout', () => {
+    render(<IntelStrip intel={makeIntel()} />);
+    const mobile = within(screen.getByTestId('intel-strip-mobile'));
+    expect(mobile.getByText('Spot rates')).toBeInTheDocument();
+    expect(mobile.getByText('Spread context')).toBeInTheDocument();
   });
 });

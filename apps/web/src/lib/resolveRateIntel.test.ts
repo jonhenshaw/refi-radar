@@ -80,7 +80,7 @@ describe('resolveRateIntel', () => {
   });
 
   it('derives intel from snapshot sources when api intel is null', () => {
-    const resolved = resolveRateIntel({ ...snapshot, intel: undefined }, series);
+    const resolved = resolveRateIntel({ ...snapshot, intel: null as unknown as undefined }, series);
     expect(resolved.derivedOnClient).toBe(true);
     expect(resolved.intel?.spreadBps.value).toBe(208);
     expect(resolved.intel?.mnd30y.value).toBe(6.77);

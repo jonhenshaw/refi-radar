@@ -1,6 +1,12 @@
 import type { IntelField, RateIntel } from '@refi-radar/shared';
 
 import { CONFIDENCE_LABELS, SOURCE_LABELS } from '../lib/sourceTheme';
+import {
+  buildIntelCells,
+  formatIntelAsOf,
+  formatIntelValue,
+  type IntelCellConfig,
+} from './intelStripModel';
 
 interface Props {
   intel: RateIntel | undefined;
@@ -8,28 +14,6 @@ interface Props {
   usingDemo?: boolean;
   loading?: boolean;
   hasSources?: boolean;
-}
-
-function formatValue(field: IntelField): string {
-  if (field.value === undefined || !Number.isFinite(field.value)) return '—';
-  if (field.unit === 'percent') return `${field.value.toFixed(2)}%`;
-  if (field.unit === 'pct_rank') return `${field.value}th`;
-  if (field.unit === 'bps') {
-    if (field.label.includes('vs')) {
-      const sign = field.value > 0 ? '+' : field.value < 0 ? '−' : '';
-      return `${sign}${Math.abs(field.value)} bps`;
-    }
-    return `${field.value} bps`;
-  }
-  return String(field.value);
-}
-
-function formatAsOf(field: IntelField): string | undefined {
-  const iso = field.observedAt ?? field.fetchedAt;
-  if (!iso) return undefined;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso.slice(0, 10);
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 function sourceLine(field: IntelField): string {
@@ -47,16 +31,43 @@ function metaLine(field: IntelField, usingDemo: boolean): string {
   if (field.unavailableReason) return field.unavailableReason;
   const parts: string[] = [];
   if (field.confidence) parts.push(CONFIDENCE_LABELS[field.confidence]);
-  const asOf = formatAsOf(field);
+  const asOf = formatIntelAsOf(field);
   if (asOf) parts.push(`as of ${asOf}`);
   if (field.stale) parts.push('stale');
   return parts.join(' · ') || sourceLine(field);
 }
 
-interface CellConfig {
-  key: string;
-  field: IntelField;
-  sub?: string;
+function IntelRow({ cell, usingDemo }: { cell: IntelCellConfig; usingDemo: boolean }) {
+  const unavailable = cell.field.value === undefined;
+  const toneClass = unavailable ? 'text-fg-faint' : 'text-fg';
+  const meta = metaLine(cell.field, usingDemo);
+
+  return (
+    <article className="min-w-0 border-b border-line px-3 py-3 last:border-b-0 lg:border-b-0 lg:px-3 lg:py-2.5">
+      <div className="flex items-start justify-between gap-3 min-w-0">
+        <p className="min-w-0 flex-1 text-[10px] uppercase tracking-wider text-fg-dim leading-snug">
+          {cell.field.label}
+        </p>
+        <p className={`shrink-0 font-mono-tnum text-base font-medium ${toneClass}`}>{formatIntelValue(cell.field)}</p>
+      </div>
+      <p className="mt-1 text-[10px] leading-snug text-fg-faint break-words" title={meta}>
+        {cell.sub ? `${cell.sub} · ` : ''}
+        {meta}
+      </p>
+    </article>
+  );
+}
+
+function headerCaption(derivedOnClient: boolean, usingDemo: boolean): string {
+  if (usingDemo) return 'Sample data';
+  if (derivedOnClient) return 'Client-computed · live sources';
+  return 'Labeled · no invented rates';
+}
+
+function headerCaptionLong(derivedOnClient: boolean, usingDemo: boolean): string {
+  if (usingDemo) return 'Sample data';
+  if (derivedOnClient) return 'Computed in browser from live sources + history';
+  return 'Labeled sources · no invented rates';
 }
 
 export function IntelStrip({
@@ -81,44 +92,53 @@ export function IntelStrip({
     );
   }
 
-  const resolvedCells: CellConfig[] = [
-    { key: 'mnd', field: intel.mnd30y, sub: 'MND' },
-    { key: 'fred30', field: intel.fred30y, sub: 'PMMS' },
-    { key: 't10', field: intel.treasury10y, sub: 'DGS10' },
-    { key: 'spread', field: intel.spreadBps, sub: 'MND − 10Y' },
-    { key: 'spreadPct', field: intel.spreadPercentile1Y ?? { ...intel.spreadBps, value: undefined }, sub: '1Y history' },
-    { key: 'vsHigh', field: intel.spreadVs52WeekHighBps ?? { ...intel.spreadBps, value: undefined, label: 'Spread vs 52w high' }, sub: '52w high' },
-    { key: 'vsLow', field: intel.spreadVs52WeekLowBps ?? { ...intel.spreadBps, value: undefined, label: 'Spread vs 52w low' }, sub: '52w low' },
-    {
-      key: 'mndPct',
-      field: intel.mortgage30yPercentile1Y ?? { ...intel.mnd30y, value: undefined, label: '30Y 1Y percentile', unit: 'pct_rank', derivation: 'derived' },
-      sub: 'MND 1Y',
-    },
-  ];
+  const cells = buildIntelCells(intel);
+  const caption = headerCaption(derivedOnClient, usingDemo);
+  const captionLong = headerCaptionLong(derivedOnClient, usingDemo);
 
   return (
-    <section aria-label="Rate intelligence" className="border border-line rounded-md bg-surface-1/40">
-      <header className="flex items-center justify-between border-b border-line px-3 py-2">
+    <section aria-label="Rate intelligence" className="overflow-hidden border border-line rounded-md bg-surface-1/40">
+      <header className="flex flex-col gap-1 border-b border-line px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
         <p className="text-[10px] uppercase tracking-[0.18em] text-fg-dim">Rate intel</p>
-        <p className="text-[10px] uppercase tracking-wider text-fg-faint">
-          {usingDemo
-            ? 'Sample data'
-            : derivedOnClient
-              ? 'Computed in browser from live sources + history'
-              : 'Labeled sources · no invented rates'}
+        <p className="text-[10px] uppercase tracking-wider text-fg-faint lg:hidden">{caption}</p>
+        <p className="hidden text-[10px] uppercase tracking-wider text-fg-faint lg:block" title={captionLong}>
+          {captionLong}
         </p>
       </header>
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 divide-x divide-y sm:divide-y-0 divide-line">
-        {resolvedCells.map((cell) => {
+
+      {/* Mobile (~390px): stacked sections, no horizontal grid */}
+      <div className="lg:hidden" data-testid="intel-strip-mobile">
+        <div>
+          <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.18em] text-fg-faint">Spot rates</p>
+          {cells
+            .filter((cell) => cell.mobileSection === 'spot')
+            .map((cell) => (
+              <IntelRow key={cell.key} cell={cell} usingDemo={usingDemo} />
+            ))}
+        </div>
+        <div className="border-t border-line">
+          <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-[0.18em] text-fg-faint">Spread context</p>
+          {cells
+            .filter((cell) => cell.mobileSection === 'spread')
+            .map((cell) => (
+              <IntelRow key={cell.key} cell={cell} usingDemo={usingDemo} />
+            ))}
+        </div>
+      </div>
+
+      {/* Desktop: second pass — wide grid */}
+      <div className="hidden divide-x divide-line lg:grid lg:grid-cols-4 xl:grid-cols-8">
+        {cells.map((cell) => {
           const unavailable = cell.field.value === undefined;
           const toneClass = unavailable ? 'text-fg-faint' : 'text-fg';
+          const meta = metaLine(cell.field, usingDemo);
           return (
-            <article key={cell.key} className="flex flex-col gap-1 px-3 py-2.5">
+            <article key={cell.key} className="flex min-w-0 flex-col gap-1 px-3 py-2.5">
               <p className="text-[10px] uppercase tracking-wider text-fg-dim">{cell.field.label}</p>
-              <p className={`font-mono-tnum text-base font-medium ${toneClass}`}>{formatValue(cell.field)}</p>
-              <p className="text-[10px] text-fg-faint truncate" title={metaLine(cell.field, usingDemo)}>
+              <p className={`font-mono-tnum text-base font-medium ${toneClass}`}>{formatIntelValue(cell.field)}</p>
+              <p className="truncate text-[10px] text-fg-faint" title={meta}>
                 {cell.sub ? `${cell.sub} · ` : ''}
-                {metaLine(cell.field, usingDemo)}
+                {meta}
               </p>
             </article>
           );
