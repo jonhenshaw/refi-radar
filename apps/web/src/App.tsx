@@ -12,6 +12,7 @@ import { AlertRulesDialog } from './components/alerts/AlertRulesDialog';
 import { ChartDialog } from './components/chart/ChartDialog';
 import { CompositeIndex } from './components/CompositeIndex';
 import { Hero } from './components/Hero';
+import { IntelStrip } from './components/IntelStrip';
 import { KeyLevels } from './components/KeyLevels';
 import { KeyStatsGrid } from './components/KeyStatsGrid';
 import { NewsPanel } from './components/news/NewsPanel';
@@ -35,6 +36,7 @@ import {
   type RateSeries,
 } from './lib/api';
 import { demoLatest, makeDemoSeries } from './lib/demoData';
+import { resolveRateIntel } from './lib/resolveRateIntel';
 import { SOURCE_LABELS, SOURCE_ORDER } from './lib/sourceTheme';
 import type { LatestSnapshot } from '@refi-radar/shared';
 
@@ -155,6 +157,10 @@ function AppContent() {
     () => series.filter((s) => SOURCE_ORDER.includes(s.sourceId)),
     [series],
   );
+  const { intel: resolvedIntel, derivedOnClient } = useMemo(
+    () => resolveRateIntel(latest, metricsSeries),
+    [latest, metricsSeries],
+  );
 
   const dialogOpen = chartInspectOpen || selectedSourceId !== null;
 
@@ -211,6 +217,16 @@ function AppContent() {
           </div>
         </div>
       ) : null}
+
+      <div className="mt-3">
+        <IntelStrip
+          intel={resolvedIntel}
+          derivedOnClient={derivedOnClient}
+          usingDemo={usingDemo}
+          loading={latestLoading}
+          hasSources={sources.length > 0}
+        />
+      </div>
 
       <Hero
         primary={primary}
