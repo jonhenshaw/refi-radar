@@ -12,6 +12,7 @@ import { AlertRulesDialog } from './components/alerts/AlertRulesDialog';
 import { ChartDialog } from './components/chart/ChartDialog';
 import { CompositeIndex } from './components/CompositeIndex';
 import { Hero } from './components/Hero';
+import { IntelStrip } from './components/IntelStrip';
 import { KeyLevels } from './components/KeyLevels';
 import { KeyStatsGrid } from './components/KeyStatsGrid';
 import { NewsPanel } from './components/news/NewsPanel';
@@ -211,6 +212,10 @@ function AppContent() {
           </div>
         </div>
       ) : null}
+
+      <div className="mt-3">
+        <IntelStrip intel={latest?.intel} usingDemo={usingDemo} loading={latestLoading} />
+      </div>
 
       <Hero
         primary={primary}
