@@ -26,6 +26,21 @@ Track 30-year fixed mortgage rates, source freshness, market proxies, and refina
 - `docs/architecture/data-sources.md`
 - `docs/plans/2026-05-05-refi-radar-implementation-plan.md`
 
+## Rate intel (spread & percentile)
+
+`/api/latest` includes an `intel` object computed in `@refi-radar/shared` and attached by the Worker snapshot builder:
+
+- **Mortgage − 10Y spread (bps)** = MND 30Y market estimate (`mnd_30y_fixed`) minus FRED 10Y Treasury (`fred_dgs10`), rounded to whole basis points.
+- **Spread 1Y percentile** = percentile rank of today's aligned daily spread within the last 365 days of MND/DGS10 history stored in D1 (requires dates where both series have observations).
+- **Spread vs 52w high/low (bps)** = distance from today's spread to the max/min aligned spread over the trailing 364 days.
+- **30Y 1Y percentile** = percentile rank of today's MND 30Y within the last 365 days of MND history.
+
+Direct rate fields always carry `sourceId`, `observedAt`, `fetchedAt`, and `confidence`. Derived fields list their `sourceIds` and return `unavailableReason` instead of inventing values when history or observations are missing/stale.
+
+When the Worker has not been deployed with `intel` yet (common on Pages preview branches), the web app computes the same fields in the browser from `/api/latest` sources plus `/api/series/compare` history and labels the strip **Computed in browser from live sources + history**.
+
+**Pages preview API:** Cloudflare Pages preview builds set `VITE_API_BASE` at build time (currently `https://refi-radar-worker.equine-abyss5k.workers.dev`). Preview frontends call that production Worker; until it ships `intel`, the client-side fallback above keeps the Rate intel strip honest.
+
 ## Initial development commands
 
 These will become active after Task 1 of the implementation plan creates package files:

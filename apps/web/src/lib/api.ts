@@ -46,7 +46,16 @@ interface ApiCalendarResponse {
   events: CalendarEvent[];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
+const API_BASE = resolveApiBase();
+
+/** Exposed for diagnostics — Pages preview builds bake VITE_API_BASE at build time. */
+export function resolveApiBase(): string {
+  return import.meta.env.VITE_API_BASE?.replace(/\/$/, '') ?? '';
+}
+
+export function getApiBaseUrl(): string {
+  return API_BASE || '(same-origin)';
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

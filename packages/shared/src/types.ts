@@ -70,10 +70,44 @@ export interface CalendarEvent {
   raw?: unknown;
 }
 
+export interface RateHistoryPoint {
+  date: string;
+  rate: number;
+}
+
+export type IntelUnit = 'percent' | 'bps' | 'pct_rank';
+
+export interface IntelField {
+  value?: number;
+  label: string;
+  unit: IntelUnit;
+  derivation: 'direct' | 'derived';
+  sourceId?: RateSourceId;
+  sourceIds?: RateSourceId[];
+  observedAt?: string;
+  fetchedAt?: string;
+  confidence?: ObservationConfidence;
+  unavailableReason?: string;
+  stale?: boolean;
+}
+
+export interface RateIntel {
+  mnd30y: IntelField;
+  fred30y: IntelField;
+  treasury10y: IntelField;
+  spreadBps: IntelField;
+  spreadPercentile1Y?: IntelField;
+  spreadVs52WeekHighBps?: IntelField;
+  spreadVs52WeekLowBps?: IntelField;
+  mortgage30yPercentile1Y?: IntelField;
+  computedAt: string;
+}
+
 export interface LatestSnapshot {
   primary?: RateObservation;
   sources: RateObservation[];
   health: SourceHealth[];
+  intel?: RateIntel;
   news?: NewsItem[];
   calendar?: CalendarEvent[];
 }

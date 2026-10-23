@@ -1,4 +1,4 @@
-import type { NewsSourceId, RateSourceId } from '@refi-radar/shared';
+import type { NewsSourceId, ObservationConfidence, RateSourceId } from '@refi-radar/shared';
 
 /**
  * Single source of truth for source-related visual + textual identity.
@@ -52,6 +52,13 @@ export const SOURCE_META: Record<RateSourceId, string> = {
   fred_dff: 'overnight policy rate',
   fred_sofr: 'overnight benchmark',
   fred_mortgage15us: 'weekly official avg',
+};
+
+export const CONFIDENCE_LABELS: Record<ObservationConfidence, string> = {
+  market_estimate: 'market estimate',
+  weekly_survey: 'weekly survey',
+  proxy: 'proxy',
+  user_derived: 'user derived',
 };
 
 /** The chart compare endpoint pulls these. Kept narrow to avoid overloading the multi-source chart. */

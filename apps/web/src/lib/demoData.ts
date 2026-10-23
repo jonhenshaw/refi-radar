@@ -6,6 +6,7 @@ import type {
   RateSourceId,
   SourceHealth as SourceHealthType,
 } from '@refi-radar/shared';
+import { buildRateIntel } from '@refi-radar/shared';
 
 import type { RangeKey, RateSeries } from './api';
 import { SOURCE_COLORS, SOURCE_LABELS } from './sourceTheme';
@@ -156,6 +157,19 @@ export const demoLatest: LatestSnapshot = {
   primary: demoSources[0],
   sources: demoSources,
   health: demoHealth,
+  intel: buildRateIntel({
+    sources: demoSources,
+    health: demoHealth,
+    mortgageHistory: demoSources
+      .filter((source) => source.sourceId === 'mnd_30y_fixed')
+      .map((source) => ({ date: source.observedAt.slice(0, 10), rate: source.rate })),
+    treasuryHistory: demoSources
+      .filter((source) => source.sourceId === 'fred_dgs10')
+      .map((source) => ({ date: source.observedAt.slice(0, 10), rate: source.rate })),
+    fred30History: demoSources
+      .filter((source) => source.sourceId === 'fred_mortgage30us')
+      .map((source) => ({ date: source.observedAt.slice(0, 10), rate: source.rate })),
+  }),
   news: demoNews,
   calendar: demoCalendar,
 };

@@ -130,7 +130,7 @@ export async function collectFredSources(env: Env): Promise<{ ok: boolean; resul
   for (const source of FRED_SOURCES) {
     try {
       const csv = await fetchFredSeries(source.seriesId);
-      const observations = parseFredCsv(csv, source.sourceId, source.confidence, 1);
+      const observations = parseFredCsv(csv, source.sourceId, source.confidence, 400);
       let inserted = 0;
       for (const observation of observations) {
         const result = await insertObservation(env.DB, observation);
